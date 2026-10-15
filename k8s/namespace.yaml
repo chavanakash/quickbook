@@ -1,0 +1,5 @@
+# Everything for QuickBook lives in its own namespace: easy to inspect, limit and delete.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quickbook

@@ -1,0 +1,117 @@
+# inventory-service: flight/train schedules and search
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+    part-of: quickbook
+spec:
+  replicas: 2 # two pods on different workers = survives one pod/node failing
+  revisionHistoryLimit: 5 # keep old ReplicaSets so "kubectl rollout undo" works
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # never drop below the desired count during a deploy
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+        part-of: quickbook
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: inventory-service
+      # Runs before the app and blocks until Postgres accepts connections, so the app
+      # never starts (and crash-loops) against a database that is still initialising.
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -t 2; do echo waiting for postgres; sleep 2; done"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            runAsUser: 70 # the image's "postgres" user; pod policy requires non-root
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: inventory-service
+          image: dockerizzz/quickbook-inventory-service # tag is set in kustomization.yaml
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: quickbook-config
+                  key: LOG_LEVEL
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: quickbook-secrets
+                  key: INVENTORY_DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # startupProbe gives the app up to 60s (e.g. waiting for Postgres) before liveness kicks in.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+spec:
+  selector:
+    app: inventory-service
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

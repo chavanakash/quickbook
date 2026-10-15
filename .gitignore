@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.db
+
+# Node
+node_modules/
+dist/
+
+# Env / editor
+.env
+.DS_Store
+.idea/
+.vscode/
+
+# Local scratch notes (may contain cluster join tokens)
+.txt

@@ -1,0 +1,20 @@
+-- Runs once, the first time the Postgres volume is created.
+-- Database-per-service: each service gets its own database AND its own user,
+-- so one service can never read or modify another service's tables.
+CREATE USER auth_user WITH PASSWORD 'auth_pass';
+CREATE DATABASE auth_db OWNER auth_user;
+
+CREATE USER inventory_user WITH PASSWORD 'inventory_pass';
+CREATE DATABASE inventory_db OWNER inventory_user;
+
+CREATE USER booking_user WITH PASSWORD 'booking_pass';
+CREATE DATABASE booking_db OWNER booking_user;
+
+CREATE USER payment_user WITH PASSWORD 'payment_pass';
+CREATE DATABASE payment_db OWNER payment_user;
+
+-- By default every user may CONNECT to every database; restrict to the owner only.
+REVOKE CONNECT ON DATABASE auth_db FROM PUBLIC;
+REVOKE CONNECT ON DATABASE inventory_db FROM PUBLIC;
+REVOKE CONNECT ON DATABASE booking_db FROM PUBLIC;
+REVOKE CONNECT ON DATABASE payment_db FROM PUBLIC;

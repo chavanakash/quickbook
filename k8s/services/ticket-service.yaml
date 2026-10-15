@@ -1,0 +1,99 @@
+# ticket-service: stateless PDF ticket generator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-service
+  labels:
+    app: ticket-service
+    part-of: quickbook
+spec:
+  replicas: 2 # two pods on different workers = survives one pod/node failing
+  revisionHistoryLimit: 5 # keep old ReplicaSets so "kubectl rollout undo" works
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # never drop below the desired count during a deploy
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: ticket-service
+  template:
+    metadata:
+      labels:
+        app: ticket-service
+        part-of: quickbook
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ticket-service
+      containers:
+        - name: ticket-service
+          image: dockerizzz/quickbook-ticket-service # tag is set in kustomization.yaml
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: quickbook-config
+                  key: LOG_LEVEL
+            - name: BOOKING_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: quickbook-config
+                  key: BOOKING_SERVICE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # startupProbe gives the app up to 60s (e.g. waiting for Postgres) before liveness kicks in.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+  labels:
+    app: ticket-service
+spec:
+  selector:
+    app: ticket-service
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

@@ -1,0 +1,9 @@
+# Non-secret settings shared by the services.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quickbook-config
+data:
+  LOG_LEVEL: INFO
+  INVENTORY_SERVICE_URL: http://inventory-service:8000
+  BOOKING_SERVICE_URL: http://booking-service:8000

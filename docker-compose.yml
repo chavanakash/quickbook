@@ -1,0 +1,90 @@
+# Local environment: the whole app with one command (`docker compose up --build`).
+# Secrets here are dev-only defaults; in Kubernetes they will come from Secrets.
+name: quickbook
+
+x-service-healthcheck: &service-healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5433:5432" # 5433 on the host to avoid clashing with a local Postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://auth_user:auth_pass@postgres:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+    ports: ["8001:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck: *service-healthcheck
+
+  inventory-service:
+    build: ./services/inventory-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://inventory_user:inventory_pass@postgres:5432/inventory_db
+    ports: ["8002:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck: *service-healthcheck
+
+  booking-service:
+    build: ./services/booking-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://booking_user:booking_pass@postgres:5432/booking_db
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-local-dev-internal-token}
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+    ports: ["8003:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck: *service-healthcheck
+
+  payment-service:
+    build: ./services/payment-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://payment_user:payment_pass@postgres:5432/payment_db
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-local-dev-internal-token}
+      BOOKING_SERVICE_URL: http://booking-service:8000
+    ports: ["8004:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck: *service-healthcheck
+
+  ticket-service:
+    build: ./services/ticket-service
+    environment:
+      BOOKING_SERVICE_URL: http://booking-service:8000
+    ports: ["8005:8000"]
+    healthcheck: *service-healthcheck
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:8080"]
+    depends_on:
+      auth-service: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
+      booking-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
+      ticket-service: { condition: service_healthy }
+
+volumes:
+  pgdata:
