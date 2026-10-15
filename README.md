@@ -58,6 +58,9 @@ services/<name>/
 frontend/            React app, nginx.conf (gateway), multi-stage Dockerfile
 db/init/             SQL that creates the per-service databases/users
 scripts/smoke_test.py  end-to-end test through the gateway
+k8s/                 Kubernetes manifests (Kustomize) – see k8s/README.md
+ci/jenkins/          Jenkins image, RBAC and setup – see ci/jenkins/README.md
+Jenkinsfile          CI/CD pipeline
 docker-compose.yml   whole stack locally
 Makefile             shortcuts
 ```
@@ -83,6 +86,7 @@ ticket 8005, Postgres 5433. Each service has Swagger docs at `http://localhost:8
 make venv            # one-time: creates .venv with all test deps (needs python3.11)
 make test-backend    # pytest for all 5 services
 make test-frontend   # vitest
+docker build --target test services/auth-service   # same tests, inside the image (what CI runs)
 ```
 
 ## Configuration (environment variables)
@@ -96,7 +100,7 @@ make test-frontend   # vitest
 | `LOG_LEVEL` | all | default `INFO` |
 
 ## Roadmap (DevOps phase)
-1. Kubernetes manifests per service (Deployment, Service, ConfigMap, Secret, probes, Ingress)
-2. Jenkins pipeline: CI (test → build → scan → push) and CD (deploy → smoke test)
+1. ✅ Kubernetes (kubeadm cluster) – manifests in `k8s/`
+2. ✅ Jenkins CI/CD – `Jenkinsfile`, setup in `ci/jenkins/`
 3. Prometheus + Grafana for metrics (`/metrics` is already exposed)
 4. Loki + Promtail for logs (JSON logs already on stdout)

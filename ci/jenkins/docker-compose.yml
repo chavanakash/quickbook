@@ -1,0 +1,25 @@
+# Run Jenkins locally:  docker compose -f ci/jenkins/docker-compose.yml up -d --build
+name: quickbook-ci
+
+services:
+  jenkins:
+    build: .
+    image: quickbook-jenkins:2.580.1
+    container_name: quickbook-jenkins
+    ports:
+      - "8080:8080" # Jenkins UI -> http://localhost:8080
+    volumes:
+      - jenkins_home:/var/jenkins_home # jobs, plugins, credentials survive restarts
+      # Lets Jenkins use Docker Desktop's engine to build/push images ("Docker outside of Docker").
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The socket is root:root 660. Add the jenkins user to group 0 instead of running Jenkins as root.
+    # Note: access to the Docker socket is still root-equivalent on the Docker VM - lab use only.
+    group_add:
+      - "0"
+    environment:
+      JAVA_OPTS: "-Xmx1g"
+    mem_limit: 2g
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
