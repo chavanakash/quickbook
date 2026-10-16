@@ -61,7 +61,8 @@
         "max_scale_up_pods": 2,
         "scale_down_stabilization_sec": 300,
         "pod_startup_sec": 12
-      }
+      },
+      "cpu_request": 0.4
     }
   }
 }

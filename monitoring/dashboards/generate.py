@@ -117,6 +117,17 @@ y += 4
 add(series("Restarts per service (10m)",
            (by_app(f'increase(kube_pod_container_status_restarts_total{{{NS}}}[10m])'), "{{app}}")), 12, 4, 0)
 y += 4
+add(series("auth pods (HPA): current vs desired",
+           (f'kube_horizontalpodautoscaler_status_current_replicas{{{NS},horizontalpodautoscaler="auth-service"}}', "current"),
+           (f'kube_horizontalpodautoscaler_status_desired_replicas{{{NS},horizontalpodautoscaler="auth-service"}}', "desired"),
+           (f'kube_horizontalpodautoscaler_spec_max_replicas{{{NS},horizontalpodautoscaler="auth-service"}}', "max"),
+           desc="The HorizontalPodAutoscaler adds auth pods when average CPU > 70% of the 400m request."), 12, 6, 0)
+add(series("Load shedding: requests rejected fast (503/s)",
+           (f'sum(rate(quickbook_requests_shed_total{{{NS}}}[$__rate_interval]))', "shed 503/s"),
+           (f'sum(quickbook_requests_in_flight{{{NS}}})', "in flight (auth, all pods)"),
+           desc="Beyond 18 requests in flight per auth pod, extra requests get an immediate 503 instead of a 30 s timeout."),
+    12, 6, 12)
+y += 6
 add(series("CPU per service (cores, all replicas)",
            (by_app(f'rate(container_cpu_usage_seconds_total{{{NS},container!="",container!="POD"}}[$__rate_interval])'),
             "{{app}}"), unit="short", stack=True), 12, 8, 0)

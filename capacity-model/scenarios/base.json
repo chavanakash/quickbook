@@ -26,7 +26,8 @@
     "frontend": {
       "pods": 2,
       "cpu_limit": 0.2,
-      "timeout_sec": 30
+      "timeout_sec": 30,
+      "cpu_request": 0.025
     },
     "auth": {
       "pods": 2,
@@ -45,7 +46,8 @@
           "restart_sec": 8,
           "crashloop_backoff": true
         }
-      }
+      },
+      "cpu_request": 0.05
     },
     "inventory": {
       "pods": 2,
@@ -64,7 +66,8 @@
           "restart_sec": 8,
           "crashloop_backoff": true
         }
-      }
+      },
+      "cpu_request": 0.05
     },
     "booking": {
       "pods": 2,
@@ -83,7 +86,8 @@
           "restart_sec": 8,
           "crashloop_backoff": true
         }
-      }
+      },
+      "cpu_request": 0.05
     },
     "payment": {
       "pods": 2,
@@ -102,7 +106,8 @@
           "restart_sec": 8,
           "crashloop_backoff": true
         }
-      }
+      },
+      "cpu_request": 0.05
     },
     "ticket": {
       "pods": 2,
@@ -121,7 +126,8 @@
           "restart_sec": 8,
           "crashloop_backoff": true
         }
-      }
+      },
+      "cpu_request": 0.05
     }
   },
   "pages": {
@@ -218,5 +224,17 @@
         "done": 1.0
       }
     }
-  }
+  },
+  "nodes": [
+    {
+      "name": "worker1",
+      "cores": 2,
+      "background_cores": 0.35
+    },
+    {
+      "name": "worker2",
+      "cores": 2,
+      "background_cores": 0.35
+    }
+  ]
 }

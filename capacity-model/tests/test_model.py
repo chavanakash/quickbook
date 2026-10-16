@@ -115,3 +115,23 @@ def test_hpa_scales_up_under_load_and_isolated_probes_prevent_restarts():
     assert max(replicas) == 4 and replicas[0] == 1        # scaled from 1 to the maximum
     assert sum(rec.restarts.values()) == 0                # busy pods are never killed
     assert any(r[4] == 503 for r in rec.requests)         # shedding happened while scaling up
+
+
+
+def test_saturated_node_shares_cpu_by_request():
+    # two busy pods with 1-core limits on a node with 1 core free: each gets 0.5 core,
+    # so a 1 CPU-s request takes ~2 s instead of 1 s
+    cfg = single_queue(0.001, mean_cpu=1.0, cpu_limit=1.0, duration=10, pods=2, threads=1)
+    cfg["services"]["svc"]["cpu_request"] = 0.4
+    cfg["nodes"] = [{"name": "n1", "cores": 1, "background_cores": 0}]
+    from qbsim.model import Simulation as S
+    sim = S(cfg, seed=31)
+    pods = sim.services["svc"].pods
+    assert all(p.node is sim.nodes[0] for p in pods)
+    finished = []
+    for pod in pods:
+        ev = sim.env.event()
+        ev.callbacks.append(lambda e: finished.append(sim.env.now))
+        pod.submit(1.0, ev)
+    sim.env.run(until=10)
+    assert finished == pytest.approx([2.0, 2.0], abs=1e-6)  # 0.5 core each -> 2 s, not 1 s

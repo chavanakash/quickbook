@@ -952,6 +952,143 @@
     },
     {
       "type": "timeseries",
+      "title": "auth pods (HPA): current vs desired",
+      "description": "The HorizontalPodAutoscaler adds auth pods when average CPU > 70% of the 400m request.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"quickbook\",horizontalpodautoscaler=\"auth-service\"}",
+          "legendFormat": "current",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"quickbook\",horizontalpodautoscaler=\"auth-service\"}",
+          "legendFormat": "desired",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"quickbook\",horizontalpodautoscaler=\"auth-service\"}",
+          "legendFormat": "max",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Load shedding: requests rejected fast (503/s)",
+      "description": "Beyond 18 requests in flight per auth pod, extra requests get an immediate 503 instead of a 30 s timeout.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(quickbook_requests_shed_total{namespace=\"quickbook\"}[$__rate_interval]))",
+          "legendFormat": "shed 503/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(quickbook_requests_in_flight{namespace=\"quickbook\"})",
+          "legendFormat": "in flight (auth, all pods)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 22,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 6
+      }
+    },
+    {
+      "type": "timeseries",
       "title": "CPU per service (cores, all replicas)",
       "description": "",
       "targets": [
@@ -993,14 +1130,14 @@
           "sort": "desc"
         }
       },
-      "id": 21,
+      "id": 23,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 45,
         "w": 12,
         "h": 8
       }
@@ -1048,14 +1185,14 @@
           "sort": "desc"
         }
       },
-      "id": 22,
+      "id": 24,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 12,
-        "y": 39,
+        "y": 45,
         "w": 12,
         "h": 8
       }
@@ -1063,11 +1200,11 @@
     {
       "type": "row",
       "title": "Cluster nodes",
-      "id": 23,
+      "id": 25,
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 53,
         "w": 24,
         "h": 1
       },
@@ -1116,14 +1253,14 @@
           "sort": "desc"
         }
       },
-      "id": 24,
+      "id": 26,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 54,
         "w": 8,
         "h": 8
       }
@@ -1171,14 +1308,14 @@
           "sort": "desc"
         }
       },
-      "id": 25,
+      "id": 27,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 8,
-        "y": 48,
+        "y": 54,
         "w": 8,
         "h": 8
       }
@@ -1226,14 +1363,14 @@
           "sort": "desc"
         }
       },
-      "id": 26,
+      "id": 28,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 16,
-        "y": 48,
+        "y": 54,
         "w": 8,
         "h": 8
       }
@@ -1241,11 +1378,11 @@
     {
       "type": "row",
       "title": "Logs (Loki)",
-      "id": 27,
+      "id": 29,
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 56,
+        "y": 62,
         "w": 24,
         "h": 1
       },
@@ -1294,14 +1431,14 @@
           "sort": "desc"
         }
       },
-      "id": 28,
+      "id": 30,
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
       "gridPos": {
         "x": 0,
-        "y": 57,
+        "y": 63,
         "w": 12,
         "h": 8
       }
@@ -1350,14 +1487,14 @@
           "sort": "desc"
         }
       },
-      "id": 29,
+      "id": 31,
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
       "gridPos": {
         "x": 12,
-        "y": 57,
+        "y": 63,
         "w": 12,
         "h": 8
       }
@@ -1384,14 +1521,14 @@
         "prettifyLogMessage": false,
         "dedupStrategy": "none"
       },
-      "id": 30,
+      "id": 32,
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
       "gridPos": {
         "x": 0,
-        "y": 65,
+        "y": 71,
         "w": 24,
         "h": 12
       }

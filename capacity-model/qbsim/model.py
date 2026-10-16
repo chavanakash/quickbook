@@ -32,6 +32,37 @@ class Recorder:
         self.page_waits = defaultdict(list)
 
 
+class Node:
+    """A worker node. Busy pods share its CPU like Linux CFS: in proportion to their CPU *requests*,
+    never above their *limits*. Without nodes, every pod is assumed to always get its full limit."""
+
+    def __init__(self, name, cores, background):
+        self.name, self.capacity = name, float(cores) - float(background)
+        self.pods = []
+
+    def reallocate(self):
+        for pod in self.pods:
+            pod._advance()  # settle progress at the old rates first
+        busy = [p for p in self.pods if p.jobs and p.alive]
+        alloc, left, todo = {}, self.capacity, list(busy)
+        while todo:  # water-filling: share by request, cap at limit, redistribute the rest
+            weights = sum(p.service.cpu_request for p in todo)
+            capped = [p for p in todo if left * p.service.cpu_request / weights >= p.service.cpu_limit]
+            if not capped:
+                for p in todo:
+                    alloc[p] = left * p.service.cpu_request / weights
+                break
+            for p in capped:
+                alloc[p] = p.service.cpu_limit
+                left -= p.service.cpu_limit
+                todo.remove(p)
+        for pod in self.pods:
+            new = alloc.get(pod, pod.service.cpu_limit)
+            if abs(new - pod.rate) > 1e-12:
+                pod.rate = new
+                pod._kick()
+
+
 class Pod:
     """A pod as a limited processor-sharing server.
 
@@ -52,14 +83,16 @@ class Pod:
         self.restarts = 0
         self.restart_times = []
         self.cpu_used = 0.0  # core-seconds consumed (what metrics-server reports, for the HPA)
+        self.rate = service.cpu_limit  # cores this pod gets right now (less if its node is saturated)
+        self.node = None
         self.terminated = False
         self.wake = env.event()
         env.process(self._run())
 
     def _advance(self):
         if self.jobs:
-            self.cpu_used += (self.env.now - self.last) * self.service.cpu_limit
-            share = (self.env.now - self.last) * self.service.cpu_limit / len(self.jobs)
+            self.cpu_used += (self.env.now - self.last) * self.rate
+            share = (self.env.now - self.last) * self.rate / len(self.jobs)
             for job in self.jobs:
                 job[0] -= share
         self.last = self.env.now
@@ -73,9 +106,12 @@ class Pod:
             done.succeed(503)  # load shedding: reject in ~0 ms instead of queueing into a timeout
             return
         self._advance()
+        was_idle = not self.jobs
         job = [cpu_seconds, done]
         (self.jobs if len(self.jobs) < self.threads else self.waiting).append(job)
         self._kick()
+        if was_idle and self.node:
+            self.node.reallocate()
 
     def _run(self):
         while True:
@@ -84,7 +120,7 @@ class Pod:
                 yield self.wake
                 continue
             soonest = max(0.0, min(j[0] for j in self.jobs))
-            yield self.env.timeout(soonest * len(self.jobs) / self.service.cpu_limit) | self.wake
+            yield self.env.timeout(soonest * len(self.jobs) / max(self.rate, 1e-9)) | self.wake
             self._advance()
             for job in [j for j in self.jobs if j[0] <= 1e-9]:
                 self.jobs.remove(job)
@@ -92,6 +128,8 @@ class Pod:
                     job[1].succeed(OK)
             while self.waiting and len(self.jobs) < self.threads:
                 self.jobs.append(self.waiting.popleft())
+            if not self.jobs and self.node:
+                self.node.reallocate()  # went idle: give its CPU back to the node
 
     def kill(self, restart_sec, backoff=True):
         """Liveness restart: every request on this pod fails with 502.
@@ -112,6 +150,8 @@ class Pod:
                 job[1].succeed(502)
         self.jobs, self.waiting = [], deque()
         self._kick()
+        if self.node:
+            self.node.reallocate()
         self.env.process(self._come_back(restart_sec))
 
     def _come_back(self, restart_sec):
@@ -122,14 +162,16 @@ class Pod:
 
 
 class Service:
-    def __init__(self, env, name, cfg, rec, rng):
+    def __init__(self, env, name, cfg, rec, rng, nodes=None):
         self.env, self.name, self.rng = env, name, rng
         self.cpu_limit = float(cfg["cpu_limit"])
+        self.cpu_request = float(cfg.get("cpu_request", cfg["cpu_limit"]))
         self.timeout = float(cfg.get("timeout_sec", 30))
         self.probes = cfg.get("probes", {})
         self.threads = int(cfg.get("threads", 40))  # Starlette's default thread-pool size
         self.max_queue = cfg.get("max_queue")  # None = unbounded (as deployed)
         self.rec, self.next_index = rec, 0
+        self.nodes = nodes or []
         self.probes_isolated = bool(cfg.get("probes_isolated", False))
         self.pods = []
         for _ in range(int(cfg.get("hpa", {}).get("min_replicas", cfg["pods"]))):
@@ -140,6 +182,10 @@ class Service:
     def add_pod(self, ready, startup_sec=0.0):
         pod = Pod(self.env, self, self.next_index, self.rec)
         self.next_index += 1
+        if self.nodes:  # spread like the scheduler + topologySpreadConstraints: least-loaded node first
+            node = min(self.nodes, key=lambda n: sum(1 for p in n.pods if p.service is self))
+            node.pods.append(pod)
+            pod.node = node
         if not ready:  # scheduled + container starting; joins the Service once ready
             pod.alive = pod.ready = False
             self.env.process(pod._come_back(startup_sec))
@@ -181,6 +227,9 @@ class Service:
             elif desired < current:
                 for pod in self.pods[desired:]:
                     pod.terminated = True  # stops getting traffic; in-flight requests finish
+                    if pod.node:
+                        pod.node.pods.remove(pod)
+                        pod.node.reallocate()
                 self.pods = self.pods[:desired]
                 self.rec.events.append((now, self.name, f"scale_down_to_{desired}"))
 
@@ -256,7 +305,9 @@ class Simulation:
         self.cfg, self.rng = cfg, random.Random(seed)
         self.env = simpy.Environment()
         self.rec = Recorder()
-        self.services = {n: Service(self.env, n, c, self.rec, random.Random(self.rng.random()))
+        nodes_cfg = cfg.get("nodes")  # optional: [{"name":..., "cores": 2, "background_cores": 0.4}, ...]
+        self.nodes = [Node(n["name"], n["cores"], n.get("background_cores", 0)) for n in nodes_cfg] if nodes_cfg else []
+        self.services = {n: Service(self.env, n, c, self.rec, random.Random(self.rng.random()), self.nodes)
                          for n, c in cfg["services"].items()}
         self.pages = {n: Page(self.env, n, c) for n, c in cfg["pages"].items()}
         u = cfg.get("users", {})
