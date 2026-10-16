@@ -1,0 +1,222 @@
+{
+  "description": "QuickBook as deployed: 2 pods per service, 0.5-core CPU limits, kubeadm probe settings, 30 s gateway timeout. Journey and think times mirror scripts/load_profiles; CPU demand comes from calibration.json.",
+  "calibration": "calibration.json",
+  "entry_page": "landing",
+  "sample_interval_sec": 1,
+  "drain_sec": 120,
+  "arrivals": {
+    "stages": [
+      {
+        "name": "steady",
+        "rate": 1.5,
+        "duration_sec": 300
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 1.0,
+    "patience": null,
+    "retry": {
+      "probability": 0.0,
+      "max_retries": 0,
+      "backoff": null
+    }
+  },
+  "services": {
+    "frontend": {
+      "pods": 2,
+      "cpu_limit": 0.2,
+      "timeout_sec": 30
+    },
+    "auth": {
+      "pods": 2,
+      "cpu_limit": 0.5,
+      "timeout_sec": 30,
+      "probes": {
+        "readiness": {
+          "period_sec": 5,
+          "timeout_sec": 1,
+          "failure_threshold": 3
+        },
+        "liveness": {
+          "period_sec": 10,
+          "timeout_sec": 1,
+          "failure_threshold": 3,
+          "restart_sec": 8,
+          "crashloop_backoff": true
+        }
+      }
+    },
+    "inventory": {
+      "pods": 2,
+      "cpu_limit": 0.5,
+      "timeout_sec": 30,
+      "probes": {
+        "readiness": {
+          "period_sec": 5,
+          "timeout_sec": 1,
+          "failure_threshold": 3
+        },
+        "liveness": {
+          "period_sec": 10,
+          "timeout_sec": 1,
+          "failure_threshold": 3,
+          "restart_sec": 8,
+          "crashloop_backoff": true
+        }
+      }
+    },
+    "booking": {
+      "pods": 2,
+      "cpu_limit": 0.5,
+      "timeout_sec": 30,
+      "probes": {
+        "readiness": {
+          "period_sec": 5,
+          "timeout_sec": 1,
+          "failure_threshold": 3
+        },
+        "liveness": {
+          "period_sec": 10,
+          "timeout_sec": 1,
+          "failure_threshold": 3,
+          "restart_sec": 8,
+          "crashloop_backoff": true
+        }
+      }
+    },
+    "payment": {
+      "pods": 2,
+      "cpu_limit": 0.5,
+      "timeout_sec": 30,
+      "probes": {
+        "readiness": {
+          "period_sec": 5,
+          "timeout_sec": 1,
+          "failure_threshold": 3
+        },
+        "liveness": {
+          "period_sec": 10,
+          "timeout_sec": 1,
+          "failure_threshold": 3,
+          "restart_sec": 8,
+          "crashloop_backoff": true
+        }
+      }
+    },
+    "ticket": {
+      "pods": 2,
+      "cpu_limit": 0.5,
+      "timeout_sec": 30,
+      "probes": {
+        "readiness": {
+          "period_sec": 5,
+          "timeout_sec": 1,
+          "failure_threshold": 3
+        },
+        "liveness": {
+          "period_sec": 10,
+          "timeout_sec": 1,
+          "failure_threshold": 3,
+          "restart_sec": 8,
+          "crashloop_backoff": true
+        }
+      }
+    }
+  },
+  "pages": {
+    "landing": {
+      "service": "frontend",
+      "dwell": {
+        "distribution": "mixture",
+        "components": [
+          {
+            "weight": 0.3,
+            "distribution": "lognormal",
+            "median": 20,
+            "sigma": 0.5
+          },
+          {
+            "weight": 0.7,
+            "distribution": "lognormal",
+            "median": 6,
+            "sigma": 0.4
+          }
+        ]
+      },
+      "next": {
+        "login": 1.0
+      }
+    },
+    "login": {
+      "service": "auth",
+      "dwell": {
+        "distribution": "lognormal",
+        "median": 8,
+        "sigma": 0.6
+      },
+      "next": {
+        "search": 1.0
+      }
+    },
+    "search": {
+      "service": "inventory",
+      "dwell": {
+        "distribution": "lognormal",
+        "median": 8,
+        "sigma": 0.6
+      },
+      "next": {
+        "search": 0.5,
+        "passengers": {
+          "p": 0.4,
+          "dwell": {
+            "distribution": "lognormal",
+            "median": 25,
+            "sigma": 0.5
+          }
+        },
+        "exit": 0.1
+      }
+    },
+    "passengers": {
+      "service": "booking",
+      "dwell": {
+        "distribution": "lognormal",
+        "median": 15,
+        "sigma": 0.4
+      },
+      "next": {
+        "payment": 1.0
+      }
+    },
+    "payment": {
+      "service": "payment",
+      "next": {
+        "payment": {
+          "p": 0.06,
+          "dwell": {
+            "distribution": "lognormal",
+            "median": 15,
+            "sigma": 0.4
+          }
+        },
+        "exit": 0.04,
+        "ticket": {
+          "p": 0.81,
+          "dwell": {
+            "distribution": "exponential",
+            "mean": 5
+          }
+        },
+        "done": 0.09
+      }
+    },
+    "ticket": {
+      "service": "ticket",
+      "next": {
+        "done": 1.0
+      }
+    }
+  }
+}

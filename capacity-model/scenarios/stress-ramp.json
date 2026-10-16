@@ -1,0 +1,41 @@
+{
+  "extends": "base.json",
+  "description": "Mirror of the real stress test (scripts/load_profiles/stress-ramp.json) for validation.",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "λ=1",
+        "rate": 1,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=2",
+        "rate": 2,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=4",
+        "rate": 4,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=6",
+        "rate": 6,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=8",
+        "rate": 8,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=10",
+        "rate": 10,
+        "duration_sec": 60
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.25
+  }
+}

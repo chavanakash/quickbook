@@ -1,0 +1,21 @@
+{
+  "extends": "base.json",
+  "description": "Mirror of the real load test (scripts/load_profiles/load-steady.json).",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "warm-up",
+        "rate": 1.0,
+        "duration_sec": 60
+      },
+      {
+        "name": "steady",
+        "rate": 1.5,
+        "duration_sec": 300
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.5
+  }
+}

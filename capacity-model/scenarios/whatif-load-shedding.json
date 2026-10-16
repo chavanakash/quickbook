@@ -1,0 +1,53 @@
+{
+  "extends": "base.json",
+  "description": "Load shedding: each auth pod runs at most 8 requests at once with 10 queued and rejects the rest immediately (503); liveness tolerates a busy pod. Chosen from the sweep (threads x max_queue).",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "λ=1",
+        "rate": 1,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=2",
+        "rate": 2,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=4",
+        "rate": 4,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=6",
+        "rate": 6,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=8",
+        "rate": 8,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=10",
+        "rate": 10,
+        "duration_sec": 60
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.25
+  },
+  "services": {
+    "auth": {
+      "max_queue": 10,
+      "probes": {
+        "liveness": {
+          "timeout_sec": 5,
+          "failure_threshold": 6
+        }
+      },
+      "threads": 8
+    }
+  }
+}

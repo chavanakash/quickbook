@@ -308,6 +308,25 @@ def summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path):
     if error_kinds:
         print("\n  errors by kind:", ", ".join(f"{k} ×{v}" for k, v in sorted(error_kinds.items(), key=lambda x: -x[1])))
 
+    slo = cfg.get("slo")
+    if slo:
+        measured = {s["name"] for s in cfg["stages"] if s.get("measure", True)}
+        reqs = [r for r in rec.requests if r[1] in measured]
+        err_pct = 100 * sum(1 for r in reqs if r[5]) / len(reqs) if reqs else 0.0
+        checks = [(f"error rate {err_pct:.2f}% < {slo['error_rate_max_pct']}%", err_pct < slo["error_rate_max_pct"])]
+        steps = defaultdict(list)
+        for r in reqs:
+            if not r[5]:
+                steps[r[2]].append(r[4])
+        for step, lats in sorted(steps.items()):
+            limit = slo["p95_ms"].get(step, slo["p95_ms"]["default"])
+            p95 = percentile(sorted(lats), 95) * 1000
+            checks.append((f"{step} p95 {p95:.0f} ms < {limit} ms", p95 < limit))
+        print(f"\n=== SLO check (stages: {', '.join(sorted(measured))}) ===")
+        for text, ok in checks:
+            print(f"  {'PASS' if ok else 'FAIL'}  {text}")
+        print(f"  => {'ALL SLOs PASSED' if all(ok for _, ok in checks) else 'SLO FAILURE'}")
+
     outcomes = defaultdict(int)
     for s in rec.sessions:
         outcomes[s[3]] += 1

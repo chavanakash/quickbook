@@ -1,0 +1,51 @@
+{
+  "extends": "base.json",
+  "description": "Flash sale with a waiting room: at most 70 users admitted to the site at once (Little's Law: ~3 users/s x ~23 s), the rest queue at the entrance (patience ~60 s).",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "before",
+        "rate": 1,
+        "duration_sec": 120
+      },
+      {
+        "name": "sale",
+        "rate": 8,
+        "duration_sec": 120
+      },
+      {
+        "name": "after",
+        "rate": 1,
+        "duration_sec": 180
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.5,
+    "patience": {
+      "distribution": "lognormal",
+      "median": 12,
+      "sigma": 0.5
+    },
+    "retry": {
+      "probability": 0.6,
+      "max_retries": 2,
+      "backoff": {
+        "distribution": "uniform",
+        "min": 1,
+        "max": 4
+      }
+    }
+  },
+  "pages": {
+    "landing": {
+      "capacity": 70,
+      "capacity_scope": "site",
+      "waiting_patience": {
+        "distribution": "lognormal",
+        "median": 60,
+        "sigma": 0.5
+      }
+    }
+  }
+}

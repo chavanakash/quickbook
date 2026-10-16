@@ -1,7 +1,7 @@
 SERVICES := auth-service inventory-service booking-service payment-service ticket-service
 PYTHON ?= python3.11
 
-.PHONY: venv test test-backend test-frontend up down logs smoke clean
+.PHONY: venv test test-backend test-frontend test-model up down logs smoke clean
 
 venv:
 	$(PYTHON) -m venv .venv
@@ -30,3 +30,6 @@ smoke:
 
 clean:
 	docker compose down -v
+
+test-model:
+	.venv/bin/pytest -q capacity-model/tests

@@ -24,6 +24,7 @@ cluster through a Jenkins CI/CD pipeline, with metrics, dashboards and centraliz
 - [Highlights](#highlights)
 - [Architecture](#architecture)
 - [CI/CD pipeline](#cicd-pipeline)
+- [Load testing & capacity model](#load-testing--capacity-model)
 - [Screenshots](#screenshots)
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
@@ -47,7 +48,8 @@ CI/CD, observability and operations.
 | **Metrics** | Prometheus + Grafana: nodes, pods, HTTP traffic/latency/errors **and business metrics** (users, bookings, revenue) |
 | **Logs** | Loki + Grafana Alloy: all pod logs, JSON log levels as labels, request-ID tracing |
 | **Ingress** | Traefik: `quickbook.localhost`, `grafana.localhost`, `prometheus.localhost` |
-| **Testing** | 41 backend + 4 frontend unit tests, end-to-end smoke test, 100-user traffic simulator |
+| **Testing** | 46 backend + 4 frontend unit tests, end-to-end smoke test, 100-user traffic simulator |
+| **Load & capacity** | Open-workload load generator (Poisson arrivals, think-time distributions, SLO pass/fail) **and a SimPy capacity model calibrated and validated against the real cluster**: predicted the breaking point (3.80 vs 3.80 logins/s), explained the collapse, and ranked fixes |
 
 ## Architecture
 
@@ -137,6 +139,29 @@ flowchart LR
 - **Verify**: rollout status + end-to-end smoke test (signup → book → pay → PDF).
 - **Rollback**: on failure, `rollout undo` — only for deployments running this build's image.
 
+## Load testing & capacity model
+Two tools, used together:
+
+1. **Load generator** ([`scripts/load_model.py`](scripts/load_model.py)): an open workload with Poisson arrivals,
+   per-page think-time distributions, profiles for load / stress / spike, and SLO pass/fail.
+   The stress test found the knee at ~4 users/s: auth-service's 0.5-core CPU limit + bcrypt.
+   The steady load test (1.5 users/s) passed every SLO with 0 errors.
+2. **Capacity model** ([`capacity-model/`](capacity-model/README.md)): a discrete-event simulation of the platform,
+   including pods as processor-sharing servers, CPU limits, readiness/liveness probes, CrashLoopBackOff and timeouts.
+   It is calibrated from the low-load test, checked against queueing theory (M/M/1, M/D/1, PS) and
+   **validated against the real cluster**:
+
+![Capacity model vs real cluster](capacity-model/results/validation-stress-ramp/validation.png)
+
+What the model found, without touching the cluster:
+
+| Finding | |
+|---|---|
+| A tolerant liveness probe **on its own makes overload worse** (goodput 1.74 → 0.87/s) | restarts had been shedding dead work |
+| Load shedding (bounded queue, fast 503) | goodput holds at ~3.6/s instead of collapsing |
+| 4 auth pods × 1 core | 10 users/s with 0 errors |
+| A **waiting room** during a flash sale | 4× more bookings, errors 92% → 0.5%, 0 pod restarts |
+
 ## Screenshots
 
 ### Monitoring (Grafana)
@@ -168,7 +193,8 @@ flowchart LR
 | CI/CD | Jenkins (LTS, Docker Desktop), Docker Hub, GitHub |
 | Observability | Prometheus, Grafana, node-exporter, kube-state-metrics, Loki, Grafana Alloy |
 | Ingress | Traefik |
-| Testing | pytest, Vitest, Python E2E smoke test, traffic simulator |
+| Testing | pytest, Vitest, Python E2E smoke test, open-workload load generator |
+| Capacity modelling | SimPy discrete-event simulation, queueing theory (M/M/1, M/D/1, processor sharing, Little's Law) |
 
 ## Quick start
 
@@ -207,7 +233,8 @@ python3 scripts/smoke_test.py         # end-to-end check
 ├── ingress/                  Traefik ingress controller
 ├── monitoring/               Prometheus/Grafana/Loki/Alloy values, dashboard, ServiceMonitor
 ├── ci/jenkins/               Jenkins image, compose file, RBAC for deployments
-├── scripts/                  smoke test, 100-user traffic simulator
+├── scripts/                  smoke test, traffic simulator, open-workload load generator + profiles
+├── capacity-model/           SimPy capacity model: calibration, validation, what-if experiments
 ├── docs/                     development guide, screenshots
 ├── db/init/                  per-service databases for docker-compose
 ├── Jenkinsfile               CI/CD pipeline
@@ -223,6 +250,7 @@ python3 scripts/smoke_test.py         # end-to-end check
 | [ci/jenkins/README.md](ci/jenkins/README.md) | Jenkins setup, credentials, pipeline design |
 | [monitoring/README.md](monitoring/README.md) | Prometheus, Grafana, Loki, business metrics, LogQL |
 | [ingress/README.md](ingress/README.md) | Traefik and how traffic reaches the cluster |
+| [capacity-model/README.md](capacity-model/README.md) | **Capacity model**: calibration, validation vs the real cluster, what-if results |
 | [docs/development.md](docs/development.md) | Local development, tests, config, API endpoints |
 | [docs/handbook/](docs/handbook/index.html) | **DevOps handbook**: images, parallel builds, cache, manifests, probes, rollouts, monitoring, latency, lessons learned. Run it locally: `docker compose -f docs/handbook/docker-compose.yml up -d` → http://localhost:8099 |
 

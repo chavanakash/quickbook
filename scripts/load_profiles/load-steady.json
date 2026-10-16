@@ -1,0 +1,72 @@
+{
+  "name": "load-steady",
+  "description": "Normal-day load test: 1 min warm-up at 1/s, then 5 min steady at 1.5 users/s (~40% of measured capacity), think times x0.5",
+  "time_scale": 0.5,
+  "stages": [
+    {
+      "name": "warm-up",
+      "arrival_rate": 1.0,
+      "duration_sec": 60,
+      "measure": false
+    },
+    {
+      "name": "steady",
+      "arrival_rate": 1.5,
+      "duration_sec": 300
+    }
+  ],
+  "slo": {
+    "error_rate_max_pct": 1,
+    "p95_ms": {
+      "signup": 2500,
+      "signin": 2500,
+      "default": 500
+    }
+  },
+  "think_time": {
+    "signup": {
+      "distribution": "lognormal",
+      "median": 20,
+      "sigma": 0.5
+    },
+    "signin": {
+      "distribution": "lognormal",
+      "median": 6,
+      "sigma": 0.4
+    },
+    "search": {
+      "distribution": "lognormal",
+      "median": 8,
+      "sigma": 0.6
+    },
+    "passengers": {
+      "distribution": "lognormal",
+      "median": 25,
+      "sigma": 0.5
+    },
+    "payment": {
+      "distribution": "lognormal",
+      "median": 15,
+      "sigma": 0.4
+    },
+    "confirmation": {
+      "distribution": "exponential",
+      "mean": 5
+    }
+  },
+  "journey": {
+    "new_user_probability": 0.3,
+    "returning_user_pool": 40,
+    "flight_probability": 0.55,
+    "searches_min": 1,
+    "searches_max": 3,
+    "book_probability": 0.8,
+    "max_passengers": 4,
+    "decline_probability": 0.1,
+    "abandon_after_decline_probability": 0.4,
+    "ticket_probability": 0.9
+  },
+  "request_timeout_sec": 30,
+  "max_concurrent_sessions": 500,
+  "drain_timeout_sec": 180
+}

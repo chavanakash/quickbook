@@ -1,0 +1,40 @@
+{
+  "extends": "base.json",
+  "description": "Normal 1/s, then a 2-minute flash sale at 8/s with impatient users who retry.",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "before",
+        "rate": 1,
+        "duration_sec": 120
+      },
+      {
+        "name": "sale",
+        "rate": 8,
+        "duration_sec": 120
+      },
+      {
+        "name": "after",
+        "rate": 1,
+        "duration_sec": 180
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.5,
+    "patience": {
+      "distribution": "lognormal",
+      "median": 12,
+      "sigma": 0.5
+    },
+    "retry": {
+      "probability": 0.6,
+      "max_retries": 2,
+      "backoff": {
+        "distribution": "uniform",
+        "min": 1,
+        "max": 4
+      }
+    }
+  }
+}

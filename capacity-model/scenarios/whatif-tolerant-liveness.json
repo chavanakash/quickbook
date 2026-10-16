@@ -1,0 +1,51 @@
+{
+  "extends": "base.json",
+  "description": "Liveness probe that tolerates a busy pod: 5 s timeout, 6 failures.",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "λ=1",
+        "rate": 1,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=2",
+        "rate": 2,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=4",
+        "rate": 4,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=6",
+        "rate": 6,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=8",
+        "rate": 8,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=10",
+        "rate": 10,
+        "duration_sec": 60
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.25
+  },
+  "services": {
+    "auth": {
+      "probes": {
+        "liveness": {
+          "timeout_sec": 5,
+          "failure_threshold": 6
+        }
+      }
+    }
+  }
+}
