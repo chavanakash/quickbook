@@ -155,6 +155,33 @@ def cmd_sweep(args):
     print(f"\n  wrote {out}/sweep.csv")
 
 
+def cmd_closeloop(args):
+    """Before/after: model predictions vs repeated real measurements."""
+    cfg_b, cfg_a = config.load(args.before_scenario), config.load(args.after_scenario)
+    _, _, model_b = replicate(cfg_b, args.reps, args.seed)
+    _, _, model_a = replicate(cfg_a, args.reps, args.seed)
+    meas_b = analysis.measured_runs(args.before, cfg_b["arrivals"]["stages"])
+    meas_a = analysis.measured_runs(args.after, cfg_a["arrivals"]["stages"])
+    print(f"Before: {len(args.before)} real runs vs model | After: {len(args.after)} real runs vs model (prediction)\n")
+    print(f"  {'stage':<8}{'before measured':>20}{'before model':>17}{'after measured':>19}{'after model':>17}   (login goodput/s, error %)")
+    rows = {}
+    for st in model_b:
+        cells = []
+        for d in (meas_b, model_b, meas_a, model_a):
+            g, e = d[st]["auth_goodput"][0], d[st]["auth_error_pct"][0]
+            cells.append(f"{g:5.2f}/s {e:5.1f}%")
+        print(f"  {st:<8}" + "".join(f"{c:>18}" for c in cells))
+        rows[st] = {name: {k: list(v) for k, v in d[st].items()} for name, d in
+                    (("before_measured", meas_b), ("before_model", model_b), ("after_measured", meas_a), ("after_model", model_a))}
+    out = RESULTS / "before-after"
+    out.mkdir(parents=True, exist_ok=True)
+    plots.before_after(meas_b, meas_a, model_b, model_a, out / "before-after.png",
+                       f"Closing the loop: the fix predicted by the model, then measured "
+                       f"({len(args.before)}+{len(args.after)} real runs, {args.reps} model replications)")
+    (out / "summary.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False, default=str))
+    print(f"\n  wrote {out}/before-after.png and summary.json")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -171,11 +198,16 @@ def main():
     sw.add_argument("scenario")
     sw.add_argument("--grid", action="append", required=True, help="dotted.key=v1,v2,...")
     sw.add_argument("--stages", nargs="+", default=["λ=4", "λ=8"])
-    for p in (r, v, c, sw):
+    cl = sub.add_parser("closeloop")
+    cl.add_argument("before_scenario")
+    cl.add_argument("after_scenario")
+    cl.add_argument("--before", nargs="+", required=True, help="real CSVs before the change")
+    cl.add_argument("--after", nargs="+", required=True, help="real CSVs after the change")
+    for p in (r, v, c, sw, cl):
         p.add_argument("--reps", type=int, default=10)
         p.add_argument("--seed", type=int, default=1000)
     args = ap.parse_args()
-    {"run": cmd_run, "validate": cmd_validate, "compare": cmd_compare, "sweep": cmd_sweep}[args.cmd](args)
+    {"run": cmd_run, "validate": cmd_validate, "compare": cmd_compare, "sweep": cmd_sweep, "closeloop": cmd_closeloop}[args.cmd](args)
 
 
 if __name__ == "__main__":

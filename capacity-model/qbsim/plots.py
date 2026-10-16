@@ -150,3 +150,28 @@ def knee_curves(curves, path, title):
 
 def nan_to_none(v):
     return None if isinstance(v, float) and math.isnan(v) else v
+
+
+def before_after(measured_before, measured_after, model_before, model_after, path, title):
+    """Closing the loop: model vs measurement, before and after a change. Measured = mean ± 95% CI of real runs."""
+    stages = list(model_before)
+    x = [model_before[s]["offered_rate"][0] for s in stages]
+    panels = [("auth_goodput", "Successful logins per second", "logins/s"),
+              ("auth_error_pct", "Login error rate", "%"),
+              ("auth_p95", "Login p95 latency", "seconds"),
+              ("booked_per_sec", "Bookings completed per second", "bookings/s")]
+    fig, axes = plt.subplots(1, 4, figsize=(18, 4.8))
+    fig.suptitle(title, x=0.01, ha="left", fontsize=13, fontweight="bold", color=INK)
+    series = [("before: model", model_before, MODEL, "--", "o"), ("before: measured", measured_before, MODEL, "-", "s"),
+              ("after: model (predicted first)", model_after, OK, "--", "o"), ("after: measured", measured_after, OK, "-", "s")]
+    for ax, (key, name, unit) in zip(axes, panels):
+        for label, data, color, ls, marker in series:
+            m = [data[s][key][0] for s in stages]
+            c = [data[s][key][1] for s in stages]
+            ax.fill_between(x, [a - b for a, b in zip(m, c)], [a + b for a, b in zip(m, c)], color=color, alpha=0.10)
+            ax.plot(x, m, color=color, ls=ls, lw=2.2, marker=marker, label=label)
+        _style(ax, name, unit, "arrival rate λ (users/s)")
+    axes[0].legend(frameon=False, loc="upper left", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
+    fig.savefig(path, dpi=130)
+    plt.close(fig)

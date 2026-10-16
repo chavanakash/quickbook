@@ -120,3 +120,12 @@ def arrival_trace(path):
     """[[t_sec, stage], ...]: when each real user arrived (their first, "home", request)."""
     rows = csv.DictReader(open(path))
     return [[float(r["t_sec"]), r["stage"]] for r in rows if r["step"] == "home"]
+
+
+def measured_runs(paths, stage_cfg):
+    """Several real runs of the same profile -> mean ± 95% CI per stage (same shape as aggregate())."""
+    runs = [measured_from_csv(p, stage_cfg) for p in paths]
+    out = {}
+    for st in runs[0]:
+        out[st] = {k: mean_ci([r[st][k] for r in runs]) for k, v in runs[0][st].items() if isinstance(v, (int, float))}
+    return out
