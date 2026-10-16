@@ -63,3 +63,10 @@ def test_seed_is_idempotent(client):
 def test_search_metric(client):
     search(client)
     assert 'quickbook_searches_total{mode="flight"}' in client.get("/metrics").text
+
+
+def test_latency_buckets_cover_slow_requests(client):
+    client.get("/health")
+    body = client.get("/metrics").text
+    assert 'http_request_duration_seconds_bucket{handler="/health",le="10.0"' in body
+    assert 'le="0.01"' in body

@@ -77,3 +77,10 @@ def test_payment_metrics(client):
     body = client.get("/metrics").text
     assert 'quickbook_payments_total{status="success"}' in body
     assert "quickbook_revenue_inr_total" in body
+
+
+def test_latency_buckets_cover_slow_requests(client):
+    client.get("/health")
+    body = client.get("/metrics").text
+    assert 'http_request_duration_seconds_bucket{handler="/health",le="10.0"' in body
+    assert 'le="0.01"' in body

@@ -33,3 +33,10 @@ def test_pdf_builder_handles_markup_in_names():
 def test_ticket_metric(client):
     client.get("/api/tickets/1", headers=AUTH)
     assert "quickbook_tickets_generated_total" in client.get("/metrics").text
+
+
+def test_latency_buckets_cover_slow_requests(client):
+    client.get("/health")
+    body = client.get("/metrics").text
+    assert 'http_request_duration_seconds_bucket{handler="/health",le="10.0"' in body
+    assert 'le="0.01"' in body

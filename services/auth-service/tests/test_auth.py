@@ -64,3 +64,10 @@ def test_business_metrics(client):
     assert "quickbook_registered_users 1.0" in body
     assert "quickbook_signups_total" in body
     assert 'quickbook_signins_total{result="failure"}' in body
+
+
+def test_latency_buckets_cover_slow_requests(client):
+    client.get("/health")
+    body = client.get("/metrics").text
+    assert 'http_request_duration_seconds_bucket{handler="/health",le="10.0"' in body
+    assert 'le="0.01"' in body

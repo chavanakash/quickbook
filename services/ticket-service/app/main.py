@@ -16,7 +16,10 @@ TICKETS = Counter("quickbook_tickets_generated_total", "PDF tickets generated")
 
 app = FastAPI(title="Ticket Service")
 add_request_logging(app)
-Instrumentator().instrument(app).expose(app, include_in_schema=False)
+# Per-endpoint latency histogram. The library default (0.1, 0.5, 1 s) caps p95 at 1 s;
+# these buckets keep slow requests measurable under load tests.
+LATENCY_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30)
+Instrumentator().instrument(app, latency_lowr_buckets=LATENCY_BUCKETS).expose(app, include_in_schema=False)
 
 
 @app.get("/health")
