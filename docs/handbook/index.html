@@ -777,8 +777,8 @@ flowchart LR
 <!-- 14 -->
 <section class="ch" id="cheatsheet" style="--c:var(--ci)">
   <div class="ch-head"><span class="ch-num">14</span><h2>Command cheat sheet</h2><p class="sub">The commands used most while running this project.</p></div>
-  <div class="code" style="--c:var(--k8s)"><span class="label">cluster</span><button class="copy" type="button">Copy</button><pre>limactl start k8s-master k8s-worker1 k8s-worker2      <span class="c"># start the VMs</span>
-limactl stop  k8s-master k8s-worker1 k8s-worker2      <span class="c"># free ~9 GB RAM</span>
+  <div class="code" style="--c:var(--k8s)"><span class="label">cluster</span><button class="copy" type="button">Copy</button><pre>for vm in k8s-master k8s-worker1 k8s-worker2; do limactl start $vm; done   <span class="c"># start (master first)</span>
+for vm in k8s-worker1 k8s-worker2 k8s-master; do limactl stop $vm; done    <span class="c"># stop, frees ~9 GB RAM</span>
 limactl shell k8s-master                              <span class="c"># shell into a node</span>
 kubectl get nodes -o wide
 kubectl -n quickbook get pods -o wide

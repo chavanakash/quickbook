@@ -62,8 +62,9 @@ Then: ingress → [`ingress/`](../ingress/README.md), monitoring → [`monitorin
 
 ## Day-to-day
 ```bash
-limactl stop  k8s-master k8s-worker1 k8s-worker2   # free ~9 GB RAM
-limactl start k8s-master k8s-worker1 k8s-worker2
+# limactl takes one VM per command. Stop workers first, start the master first.
+for vm in k8s-worker1 k8s-worker2 k8s-master; do limactl stop $vm; done    # free ~9 GB RAM
+for vm in k8s-master k8s-worker1 k8s-worker2; do limactl start $vm; done
 limactl shell k8s-master                           # SSH-like shell into a node
 ```
 
