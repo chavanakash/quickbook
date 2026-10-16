@@ -112,7 +112,7 @@ Compare with [the same sale without it](results/flash-sale/timeline.png).
 
 # model vs the real cluster, replaying the real arrival times
 .venv/bin/python capacity-model/simulate.py validate capacity-model/scenarios/stress-ramp.json \
-    capacity-model/data/real-stress-ramp.csv --trace
+    capacity-model/data/real-stress-ramp-baseline-seed42.csv --trace
 
 # what-ifs on the same ramp -> results/compare/knee-curves.png
 .venv/bin/python capacity-model/simulate.py compare capacity-model/scenarios/stress-ramp.json capacity-model/scenarios/whatif-*.json
@@ -122,7 +122,7 @@ Compare with [the same sale without it](results/flash-sale/timeline.png).
     --grid services.auth.threads=1,2,4,8,40 --grid services.auth.max_queue=4,10,30
 
 # recalibrate from a new real load test
-.venv/bin/python capacity-model/calibrate.py capacity-model/data/real-stress-ramp.csv --stage "λ=1"
+.venv/bin/python capacity-model/calibrate.py capacity-model/data/real-stress-ramp-baseline-seed42.csv --stage "λ=1"
 
 .venv/bin/pytest -q capacity-model/tests
 ```

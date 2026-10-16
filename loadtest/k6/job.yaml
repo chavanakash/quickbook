@@ -1,0 +1,49 @@
+# k6 run as a Kubernetes Job on the control-plane node: the load generator never competes with the
+# app pods (which run on the workers) or with the laptop. __NAME__ / __PROFILE__ are filled in by Jenkins.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __NAME__
+  namespace: quickbook
+  labels:
+    app: k6
+spec:
+  backoffLimit: 0 # a failed load test must fail, not retry
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: k6
+          image: grafana/k6:0.54.0
+          args: ["run", "--out", "experimental-prometheus-rw", "--tag", "testid=__NAME__", "/scripts/quickbook.js"]
+          env:
+            - name: PROFILE
+              value: "__PROFILE__"
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              value: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090/api/v1/write
+            - name: K6_PROMETHEUS_RW_TREND_STATS
+              value: "p(50),p(95),p(99),max"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-quickbook

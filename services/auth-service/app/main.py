@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+import anyio
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,9 +11,11 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .config import MAX_IN_FLIGHT, THREADPOOL_SIZE
 from .db import SessionLocal, get_db, init_db
 from .logging_config import add_request_logging, setup_logging
 from .models import User
+from .overload import LoadShedding
 from .schemas import AuthResponse, SigninRequest, SignupRequest, UserOut
 from .security import create_access_token, decode_access_token, hash_password, verify_password
 
@@ -41,15 +44,24 @@ def count_users() -> float:
 REGISTERED_USERS.set_function(count_users)
 
 
+_ready_limiter = None
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    global _ready_limiter
     init_db()
-    logger.info("service started")
+    # Size of the thread pool that runs the sync (bcrypt) handlers.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = THREADPOOL_SIZE
+    # Readiness gets its own small pool, so it never waits behind bcrypt work.
+    _ready_limiter = anyio.CapacityLimiter(2)
+    logger.info("service started", extra={"extra_fields": {"threadpool": THREADPOOL_SIZE, "max_in_flight": MAX_IN_FLIGHT}})
     yield
 
 
 app = FastAPI(title="Auth Service", lifespan=lifespan)
 add_request_logging(app)
+app.add_middleware(LoadShedding, limit=MAX_IN_FLIGHT)
 # Exposes /metrics in Prometheus format (request count, latency, etc.).
 # Per-endpoint latency histogram. The library default (0.1, 0.5, 1 s) caps p95 at 1 s;
 # these buckets keep slow requests measurable under load tests.
@@ -58,16 +70,21 @@ Instrumentator().instrument(app, latency_lowr_buckets=LATENCY_BUCKETS).expose(ap
 
 
 @app.get("/health")
-def health():
-    """Liveness probe: the process is up."""
+async def health():
+    """Liveness probe: the process is up. Async = runs on the event loop, never queued behind bcrypt."""
     return {"status": "ok"}
 
 
-@app.get("/ready")
-def ready(db: Session = Depends(get_db)):
-    """Readiness probe: the service can reach its database."""
-    try:
+def _db_ping():
+    with SessionLocal() as db:
         db.execute(text("SELECT 1"))
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe: the service can reach its database. Uses its own 2-thread pool."""
+    try:
+        await anyio.to_thread.run_sync(_db_ping, limiter=_ready_limiter)
     except Exception:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "database unavailable")
     return {"status": "ready"}

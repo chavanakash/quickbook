@@ -7,7 +7,7 @@ metadata:
     app: auth-service
     part-of: quickbook
 spec:
-  replicas: 2 # two pods on different workers = survives one pod/node failing
+  # No replicas field: the HorizontalPodAutoscaler (auth-service-hpa.yaml) owns the pod count.
   revisionHistoryLimit: 5 # keep old ReplicaSets so "kubectl rollout undo" works
   strategy:
     type: RollingUpdate
@@ -76,12 +76,22 @@ spec:
                 secretKeyRef:
                   name: quickbook-secrets
                   key: JWT_SECRET
+            # Overload protection, sized with the capacity model (capacity-model/README.md):
+            # 8 concurrent bcrypt handlers + 10 waiting per pod; beyond that, an immediate 503.
+            - name: THREADPOOL_SIZE
+              value: "8"
+            - name: MAX_IN_FLIGHT
+              value: "18"
+            - name: BCRYPT_ROUNDS
+              value: "12"
           resources:
+            # 1 core per pod (was 0.5): bcrypt is CPU-bound; the 0.5-core limit doubled every login's latency.
+            # The request is what the HPA measures utilisation against.
             requests:
-              cpu: 50m
+              cpu: 400m
               memory: 128Mi
             limits:
-              cpu: 500m
+              cpu: "1"
               memory: 256Mi
           # startupProbe gives the app up to 60s (e.g. waiting for Postgres) before liveness kicks in.
           startupProbe:
@@ -90,12 +100,15 @@ spec:
               port: http
             periodSeconds: 2
             failureThreshold: 30
+          # Tolerant liveness: a busy pod is not a broken pod. (The stress test showed the default
+          # 1 s / 3 failures killing healthy-but-busy pods and turning overload into an outage.)
           livenessProbe:
             httpGet:
               path: /health
               port: http
             periodSeconds: 10
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /ready

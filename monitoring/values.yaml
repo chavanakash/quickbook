@@ -19,6 +19,8 @@ kubeProxy:
 prometheus:
   prometheusSpec:
     # Pick up ServiceMonitors from every namespace, not only ones labelled for this Helm release.
+    # Accept metrics pushed by k6 load tests (k6 --out experimental-prometheus-rw).
+    enableRemoteWriteReceiver: true
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false

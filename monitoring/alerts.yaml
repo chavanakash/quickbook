@@ -1,0 +1,72 @@
+# Alert rules derived from what the load tests and the capacity model revealed.
+# Evaluated by Prometheus (visible at http://prometheus.localhost:8088/alerts and in Grafana -> Alerting).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: quickbook-capacity
+  namespace: monitoring
+spec:
+  groups:
+    - name: quickbook.capacity
+      rules:
+        # Stress test: auth was throttled 96-98% of the time just before it collapsed.
+        - alert: AuthCPUThrottled
+          expr: |
+            sum(rate(container_cpu_cfs_throttled_periods_total{namespace="quickbook",container="auth-service"}[5m]))
+              / sum(rate(container_cpu_cfs_periods_total{namespace="quickbook",container="auth-service"}[5m])) > 0.5
+          for: 2m
+          labels: {severity: warning}
+          annotations:
+            summary: "auth-service is CPU-throttled in {{ $value | humanizePercentage }} of periods"
+            description: "Logins are being slowed by the CPU limit. Capacity is close to its limit; check the HPA."
+
+        # SLO from scripts/load_profiles/load-steady.json: login p95 < 2.5 s.
+        - alert: LoginLatencySLOBreach
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{
+              namespace="quickbook", handler=~"/api/auth/sign(in|up)"}[5m]))) > 2.5
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "Login p95 is {{ $value | humanizeDuration }} (SLO 2.5 s)"
+
+        - alert: QuickBookErrorRateHigh
+          expr: |
+            sum(rate(http_requests_total{namespace="quickbook",status="5xx"}[5m]))
+              / sum(rate(http_requests_total{namespace="quickbook"}[5m])) > 0.01
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "{{ $value | humanizePercentage }} of QuickBook requests are failing (SLO 1%)"
+
+        # Load shedding is working as designed, but sustained shedding means users are being turned away.
+        - alert: AuthLoadShedding
+          expr: sum(rate(quickbook_requests_shed_total{namespace="quickbook"}[5m])) > 0.5
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "auth-service is rejecting {{ $value | humanize }} requests/s with 503 (overloaded)"
+
+        # The HPA has nothing left to give: more capacity needs more nodes or a higher maxReplicas.
+        - alert: AuthAutoscalerAtMaximum
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="quickbook",horizontalpodautoscaler="auth-service"}
+              >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="quickbook",horizontalpodautoscaler="auth-service"}
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "auth-service HPA has been at maxReplicas for 5 minutes"
+
+        # The original cascade: readiness flapping, then liveness restarts under load.
+        - alert: PodReadinessFlapping
+          expr: changes(kube_pod_status_ready{namespace="quickbook",condition="true"}[10m]) > 2
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.pod }} changed readiness {{ $value }} times in 10 minutes"
+
+        - alert: PodRestartedUnderLoad
+          expr: increase(kube_pod_container_status_restarts_total{namespace="quickbook"}[10m]) > 0
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.pod }} restarted in the last 10 minutes"
+            description: "Under load this usually means the liveness probe killed a busy (not broken) pod."

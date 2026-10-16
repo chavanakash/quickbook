@@ -8,7 +8,7 @@
 Examples (from the repo root):
   .venv/bin/python capacity-model/simulate.py run capacity-model/scenarios/stress-ramp.json --reps 10
   .venv/bin/python capacity-model/simulate.py validate capacity-model/scenarios/stress-ramp.json \\
-        capacity-model/data/real-stress-ramp.csv
+        capacity-model/data/real-stress-ramp-baseline-seed42.csv
   .venv/bin/python capacity-model/simulate.py compare capacity-model/scenarios/stress-ramp.json \\
         capacity-model/scenarios/whatif-*.json
   .venv/bin/python capacity-model/simulate.py run capacity-model/scenarios/stress-ramp.json --set services.auth.pods=3

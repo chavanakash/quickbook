@@ -13,6 +13,7 @@ resources:
   - postgres/init-secret.yaml
   - postgres/statefulset.yaml
   - services/auth-service.yaml
+  - services/auth-service-hpa.yaml
   - services/inventory-service.yaml
   - services/booking-service.yaml
   - services/payment-service.yaml

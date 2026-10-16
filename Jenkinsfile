@@ -72,6 +72,8 @@ pipeline {
                 stage('payment-service')   { steps { script { testAndBuild('payment-service') } } }
                 stage('ticket-service')    { steps { script { testAndBuild('ticket-service') } } }
                 stage('frontend')          { steps { script { testAndBuild('frontend') } } }
+                // Capacity model: tests against queueing theory (M/M/1, M/D/1, PS, Little's Law, HPA)
+                stage('capacity-model')    { steps { sh 'docker build --target test capacity-model' } }
             }
         }
 
@@ -129,6 +131,17 @@ pipeline {
                         done
                         python3 scripts/smoke_test.py http://localhost:18080
                     '''
+                }
+            }
+        }
+
+        stage('CD: Performance gate (k6)') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-quickbook', variable: 'KUBECONFIG')]) {
+                    // 90 s at 1.5 users/s from a k6 Job on the control-plane node. SLO thresholds:
+                    // errors < 1%, login p95 < 2.5 s, other steps p95 < 500 ms. A breach fails the build,
+                    // and the post-failure block rolls the deployment back.
+                    sh 'loadtest/run-k6.sh gate k6-gate-$BUILD_NUMBER'
                 }
             }
         }

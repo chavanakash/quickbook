@@ -3,11 +3,11 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
-from .config import JWT_ALGORITHM, JWT_EXPIRE_MINUTES, JWT_SECRET
+from .config import BCRYPT_ROUNDS, JWT_ALGORITHM, JWT_EXPIRE_MINUTES, JWT_SECRET
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode()
 
 
 def verify_password(password: str, password_hash: str) -> bool:
