@@ -60,7 +60,8 @@ db/init/             SQL that creates the per-service databases/users
 scripts/smoke_test.py  end-to-end test through the gateway
 k8s/                 Kubernetes manifests (Kustomize) – see k8s/README.md
 ci/jenkins/          Jenkins image, RBAC and setup – see ci/jenkins/README.md
-monitoring/          Prometheus/Grafana values, ServiceMonitor, dashboard – see monitoring/README.md
+monitoring/          Prometheus/Grafana/Loki values, ServiceMonitor, dashboard – see monitoring/README.md
+ingress/             Traefik ingress controller – see ingress/README.md
 Jenkinsfile          CI/CD pipeline
 docker-compose.yml   whole stack locally
 Makefile             shortcuts
@@ -105,3 +106,4 @@ docker build --target test services/auth-service   # same tests, inside the imag
 2. ✅ Jenkins CI/CD – `Jenkinsfile`, setup in `ci/jenkins/`
 3. ✅ Prometheus + Grafana – `monitoring/` (cluster, nodes, pods, traffic, business metrics)
 4. ✅ Loki + Grafana Alloy for logs – `monitoring/`
+5. ✅ Traefik ingress – http://quickbook.localhost:8088, http://grafana.localhost:8088 (`ingress/`)

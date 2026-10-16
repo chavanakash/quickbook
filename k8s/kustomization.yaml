@@ -18,6 +18,7 @@ resources:
   - services/payment-service.yaml
   - services/ticket-service.yaml
   - services/frontend.yaml
+  - ingress.yaml
 images:
   - name: dockerizzz/quickbook-auth-service
     newTag: v1.0.0

@@ -1,0 +1,19 @@
+# Public entry point for QuickBook via the Traefik ingress controller.
+# From the Mac: http://quickbook.localhost:8088  (Lima forwards :8088 to Traefik on the master)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quickbook
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: quickbook.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend # nginx inside frontend still routes /api/* to the microservices
+                port:
+                  name: http

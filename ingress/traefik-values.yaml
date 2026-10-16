@@ -1,0 +1,52 @@
+# Traefik ingress controller (chart traefik/traefik 42.0.0) for the Lima/kubeadm lab.
+#
+# How traffic reaches it from the Mac:
+#   browser -> localhost:8088 (Mac) -> Lima auto port-forward -> k8s-master:8088 -> Traefik -> Services
+# Traefik uses hostNetwork, so it opens a real socket on the master VM, which Lima forwards to the Mac.
+
+deployment:
+  replicas: 1
+  dnsPolicy: ClusterFirstWithHostNet # hostNetwork pods still need cluster DNS for Service names
+
+hostNetwork: true
+
+# Run on the master: one fixed node = one stable address to forward. (Lab choice; production
+# clusters use a LoadBalancer Service in front of several ingress pods.)
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+ports:
+  web:
+    port: 8088 # HTTP entrypoint on the master (8080 is taken by Jenkins on the Mac)
+  websecure:
+    port: 8443
+  traefik:
+    port: 8089 # Traefik's own ping/dashboard port (default 8080 would clash with Jenkins via Lima)
+  metrics:
+    port: 9102 # default 9100 is already used by node-exporter on every node's host network
+
+# hostNetwork means no Service is needed in front of Traefik.
+service:
+  enabled: false
+
+# With hostNetwork only one pod can hold the port on a node, so replace instead of surging.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 192Mi

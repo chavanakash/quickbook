@@ -1,0 +1,31 @@
+# Grafana and Prometheus UIs via Traefik.
+#   http://grafana.localhost:8088      (login: admin / password from the grafana-admin Secret)
+#   http://prometheus.localhost:8088   (no login - only reachable from this Mac)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: observability
+  namespace: monitoring
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: monitoring-grafana
+                port:
+                  number: 80
+    - host: prometheus.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: monitoring-kube-prometheus-prometheus
+                port:
+                  number: 9090
