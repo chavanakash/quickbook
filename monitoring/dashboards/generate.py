@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 DS = {"type": "prometheus", "uid": "prometheus"}
+LOKI = {"type": "loki", "uid": "loki"}
 NS = 'namespace="quickbook"'
 APP_HANDLERS = 'handler!~"/health|/ready|/metrics"'  # ignore probe/scrape traffic
 NODE_NAME = " * on (instance) group_left (nodename) node_uname_info"  # adds the node's hostname as a label
@@ -13,9 +14,9 @@ NODE_NAME = " * on (instance) group_left (nodename) node_uname_info"  # adds the
 panels, next_id, y = [], 1, 0
 
 
-def add(panel, w, h, x):
+def add(panel, w, h, x, ds=DS):
     global next_id
-    panel.update(id=next_id, datasource=DS, gridPos={"x": x, "y": y, "w": w, "h": h})
+    panel.update(id=next_id, datasource=ds, gridPos={"x": x, "y": y, "w": w, "h": h})
     panels.append(panel)
     next_id += 1
 
@@ -28,8 +29,8 @@ def row(title):
     y += 1
 
 
-def targets(*exprs):
-    return [{"refId": chr(65 + i), "expr": e, "legendFormat": l, "datasource": DS} for i, (e, l) in enumerate(exprs)]
+def targets(*exprs, ds=DS):
+    return [{"refId": chr(65 + i), "expr": e, "legendFormat": l, "datasource": ds} for i, (e, l) in enumerate(exprs)]
 
 
 def stat(title, expr, unit="short", color="blue", desc=""):
@@ -39,8 +40,8 @@ def stat(title, expr, unit="short", color="blue", desc=""):
             "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none"}}
 
 
-def series(title, *exprs, unit="short", stack=False, desc=""):
-    return {"type": "timeseries", "title": title, "description": desc, "targets": targets(*exprs),
+def series(title, *exprs, unit="short", stack=False, desc="", ds=DS):
+    return {"type": "timeseries", "title": title, "description": desc, "targets": targets(*exprs, ds=ds),
             "fieldConfig": {"defaults": {"unit": unit, "custom": {
                 "fillOpacity": 15, "lineWidth": 2, "showPoints": "never",
                 "stacking": {"mode": "normal" if stack else "none"}}}, "overrides": []},
@@ -130,10 +131,38 @@ add(series("Node disk used (/)",
            unit="percent"), 8, 8, 16)
 y += 8
 
+# ---------------- Logs (Loki) ----------------
+row("Logs (Loki)")
+LOG_SELECTOR = '{namespace="quickbook", app=~"$app"}'
+add(series("Log lines per service",
+           (f'sum by (app) (count_over_time({LOG_SELECTOR} [$__interval]))', "{{app}}"),
+           stack=True, ds=LOKI), 12, 8, 0, ds=LOKI)
+add(series("Errors & warnings per service",
+           ('sum by (app, level) (count_over_time({namespace="quickbook", app=~"$app", level=~"ERROR|WARNING"} [$__interval]))',
+            "{{app}} {{level}}"),
+           stack=True, ds=LOKI, desc="From the JSON 'level' field the services log."), 12, 8, 12, ds=LOKI)
+y += 8
+add({"type": "logs", "title": "QuickBook logs (filter with the app / search boxes at the top)",
+     "targets": targets((f'{LOG_SELECTOR} |= "$search"', ""), ds=LOKI),
+     "options": {"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending",
+                 "enableLogDetails": True, "prettifyLogMessage": False, "dedupStrategy": "none"}},
+    24, 12, 0, ds=LOKI)
+y += 12
+
+APPS = ["auth-service", "inventory-service", "booking-service", "payment-service", "ticket-service", "frontend", "postgres"]
+templating = {"list": [
+    {"type": "custom", "name": "app", "label": "app (logs)", "query": ",".join(APPS),
+     "multi": True, "includeAll": True, "allValue": ".*",
+     "current": {"text": ["All"], "value": ["$__all"]},
+     "options": [{"text": "All", "value": "$__all", "selected": True}] + [{"text": a, "value": a, "selected": False} for a in APPS]},
+    {"type": "textbox", "name": "search", "label": "search logs", "query": "",
+     "current": {"text": "", "value": ""}},
+]}
+
 dashboard = {
     "uid": "quickbook-overview", "title": "QuickBook Overview", "tags": ["quickbook"],
     "timezone": "browser", "schemaVersion": 39, "refresh": "30s",
-    "time": {"from": "now-1h", "to": "now"}, "panels": panels,
+    "time": {"from": "now-1h", "to": "now"}, "panels": panels, "templating": templating,
 }
 out = Path(__file__).with_name("quickbook-overview.json")
 out.write_text(json.dumps(dashboard, indent=2) + "\n")

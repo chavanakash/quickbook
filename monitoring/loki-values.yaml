@@ -1,0 +1,59 @@
+# Grafana Loki (chart grafana/loki 7.3.0) - single-binary mode for a small lab cluster.
+# All Loki components run in one pod; logs are stored on a local-path volume.
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false # single tenant; no X-Scope-OrgID header needed
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 72h # keep 3 days of logs, same as Prometheus
+  compactor:
+    retention_enabled: true # the compactor actually deletes logs older than retention_period
+    delete_request_store: filesystem
+  pattern_ingester:
+    enabled: false
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+
+# Components for the scalable/microservice modes - not used in single-binary mode.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Extras we don't need in a lab (each would cost RAM).
+gateway:
+  enabled: false # Grafana and Alloy talk to Loki's own service directly
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

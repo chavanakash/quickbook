@@ -104,4 +104,4 @@ docker build --target test services/auth-service   # same tests, inside the imag
 1. ✅ Kubernetes (kubeadm cluster) – manifests in `k8s/`
 2. ✅ Jenkins CI/CD – `Jenkinsfile`, setup in `ci/jenkins/`
 3. ✅ Prometheus + Grafana – `monitoring/` (cluster, nodes, pods, traffic, business metrics)
-4. Loki + Promtail for logs (JSON logs already on stdout)
+4. ✅ Loki + Grafana Alloy for logs – `monitoring/`

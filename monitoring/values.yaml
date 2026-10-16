@@ -42,8 +42,21 @@ prometheus:
               storage: 5Gi
 
 grafana:
-  # Admin password is generated at install time and stored only in the cluster Secret.
+  # Admin login comes from a Secret created once by hand (see README), so upgrades never reset it.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
   defaultDashboardsTimezone: browser
+  # Logs: Loki (installed separately from monitoring/loki-values.yaml).
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+      jsonData:
+        maxLines: 1000
   persistence:
     enabled: false # dashboards come from code (ConfigMaps), so nothing to lose
   resources:
@@ -54,6 +67,9 @@ grafana:
       cpu: 500m
       memory: 384Mi
   sidecar:
+    datasources:
+      alertmanager:
+        enabled: false # Alertmanager is disabled above; don't add a broken datasource
     dashboards:
       enabled: true
       label: grafana_dashboard # any ConfigMap with this label becomes a dashboard

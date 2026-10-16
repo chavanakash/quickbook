@@ -1233,6 +1233,236 @@
         "w": 8,
         "h": 8
       }
+    },
+    {
+      "type": "row",
+      "title": "Logs (Loki)",
+      "id": 27,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Log lines per service",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (app) (count_over_time({namespace=\"quickbook\", app=~\"$app\"} [$__interval]))",
+          "legendFormat": "{{app}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 28,
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Errors & warnings per service",
+      "description": "From the JSON 'level' field the services log.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (app, level) (count_over_time({namespace=\"quickbook\", app=~\"$app\", level=~\"ERROR|WARNING\"} [$__interval]))",
+          "legendFormat": "{{app}} {{level}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 29,
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 57,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "logs",
+      "title": "QuickBook logs (filter with the app / search boxes at the top)",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{namespace=\"quickbook\", app=~\"$app\"} |= \"$search\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none"
+      },
+      "id": 30,
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 24,
+        "h": 12
+      }
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "custom",
+        "name": "app",
+        "label": "app (logs)",
+        "query": "auth-service,inventory-service,booking-service,payment-service,ticket-service,frontend,postgres",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "auth-service",
+            "value": "auth-service",
+            "selected": false
+          },
+          {
+            "text": "inventory-service",
+            "value": "inventory-service",
+            "selected": false
+          },
+          {
+            "text": "booking-service",
+            "value": "booking-service",
+            "selected": false
+          },
+          {
+            "text": "payment-service",
+            "value": "payment-service",
+            "selected": false
+          },
+          {
+            "text": "ticket-service",
+            "value": "ticket-service",
+            "selected": false
+          },
+          {
+            "text": "frontend",
+            "value": "frontend",
+            "selected": false
+          },
+          {
+            "text": "postgres",
+            "value": "postgres",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "type": "textbox",
+        "name": "search",
+        "label": "search logs",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      }
+    ]
+  }
 }
