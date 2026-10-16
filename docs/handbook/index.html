@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='3' width='24' height='26' rx='4' fill='%23326ce5'/%3E%3Crect x='9' y='9' width='14' height='3' rx='1.5' fill='white'/%3E%3Crect x='9' y='15' width='10' height='3' rx='1.5' fill='white'/%3E%3C/svg%3E">
+<title>QuickBook DevOps Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky chapter rail on the left (desktop), one reading column; each chapter owns a colour from the stack it covers. */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f8;
+  --ink: #141a2b;
+  --muted: #5b6480;
+  --line: #dde2ee;
+  --code-bg: #151b2e;
+  --code-ink: #e4e9f7;
+  --docker: #1d63ed;
+  --build: #0e9f8e;
+  --ci: #d24939;
+  --k8s: #326ce5;
+  --probe: #7c3aed;
+  --net: #0891b2;
+  --prom: #e6522c;
+  --graf: #f08c00;
+  --logs: #b8860b;
+  --lesson: #c2410c;
+  --ok: #15803d;
+  --warn: #b45309;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1220; --surface: #141b2d; --surface-2: #1b2438; --ink: #e8ecf6; --muted: #9aa5c2; --line: #263049;
+    --code-bg: #0a0f1c; --code-ink: #e4e9f7;
+    --docker: #5b8fff; --build: #2dd4bf; --ci: #f87171; --k8s: #7aa2ff; --probe: #a78bfa; --net: #22d3ee;
+    --prom: #ff7a50; --graf: #ffb02e; --logs: #facc15; --lesson: #fb923c; --ok: #4ade80; --warn: #fbbf24;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1220; --surface: #141b2d; --surface-2: #1b2438; --ink: #e8ecf6; --muted: #9aa5c2; --line: #263049;
+  --code-bg: #0a0f1c; --code-ink: #e4e9f7;
+  --docker: #5b8fff; --build: #2dd4bf; --ci: #f87171; --k8s: #7aa2ff; --probe: #a78bfa; --net: #22d3ee;
+  --prom: #ff7a50; --graf: #ffb02e; --logs: #facc15; --lesson: #fb923c; --ok: #4ade80; --warn: #fbbf24;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.65 var(--body); }
+.wrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 48px; max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 80px; }
+@media (max-width: 920px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+/* rail */
+nav.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: 14px; }
+nav.rail h2 { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+nav.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.rail a { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+nav.rail a:hover, nav.rail a:focus-visible { background: var(--surface-2); outline: none; }
+nav.rail .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--c); }
+@media (max-width: 920px) {
+  nav.rail { position: static; }
+  nav.rail ol { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+}
+
+/* hero */
+header.hero { padding-bottom: 8px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(34px, 5vw, 56px)/1.04 var(--display); letter-spacing: -.02em; margin: 10px 0 14px; text-wrap: balance; }
+h1 .tint { background: linear-gradient(90deg, var(--docker), var(--k8s) 35%, var(--prom) 70%, var(--graf)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: 18px; color: var(--muted); max-width: 64ch; margin: 0 0 22px; }
+.stack { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+.chip { font: 600 12.5px/1 var(--body); padding: 7px 11px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.fact b { display: block; font: 800 28px/1.1 var(--display); color: var(--c, var(--ink)); font-variant-numeric: tabular-nums; }
+.fact span { font-size: 13px; color: var(--muted); }
+
+/* chapters */
+section.ch { margin-top: 64px; scroll-margin-top: 24px; }
+.ch-head { display: flex; align-items: flex-end; gap: 16px; border-bottom: 3px solid var(--c); padding-bottom: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+.ch-num { font: 800 15px/1 var(--mono); color: var(--surface); background: var(--c); padding: 7px 9px; border-radius: 8px; }
+.ch-head h2 { font: 800 clamp(26px, 3.2vw, 36px)/1.1 var(--display); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.ch-head .sub { width: 100%; color: var(--muted); margin: 2px 0 0; font-size: 15px; }
+h3 { font: 600 21px/1.3 var(--display); margin: 34px 0 10px; color: var(--ink); }
+h3::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 10px; vertical-align: middle; }
+p, li { max-width: 72ch; }
+ul.tight { padding-left: 20px; margin: 8px 0 14px; }
+ul.tight li { margin: 4px 0; }
+code { font: 500 .88em/1 var(--mono); background: var(--surface-2); padding: 2px 6px; border-radius: 5px; }
+a { color: var(--k8s); }
+strong { font-weight: 600; }
+
+/* code blocks */
+.code { position: relative; margin: 14px 0 18px; }
+.code pre { margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 16px 18px; overflow-x: auto;
+  font: 400 13.5px/1.6 var(--mono); border-left: 4px solid var(--c); }
+.code pre .c { color: #8b97b8; }
+.code pre .k { color: #7dd3fc; }
+.code .label { position: absolute; top: -10px; left: 14px; font: 600 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase;
+  background: var(--c); color: #fff; padding: 5px 8px; border-radius: 6px; }
+.copy { position: absolute; top: 10px; right: 10px; font: 600 12px/1 var(--body); background: #ffffff1f; color: var(--code-ink); border: 1px solid #ffffff33;
+  border-radius: 7px; padding: 6px 9px; cursor: pointer; }
+.copy:hover, .copy:focus-visible { background: #ffffff33; outline: none; }
+
+/* tables */
+.tbl { overflow-x: auto; margin: 14px 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px/1.3 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { white-space: nowrap; }
+
+/* callouts */
+.note { border-radius: 12px; padding: 14px 16px 14px 18px; margin: 16px 0; background: color-mix(in srgb, var(--n) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--n) 30%, transparent); }
+.note b.tag { font: 600 11.5px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--n); display: block; margin-bottom: 6px; }
+.note p { margin: 4px 0; }
+.why { --n: var(--k8s); } .gotcha { --n: var(--warn); } .prod { --n: var(--ok); }
+
+/* diagrams */
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin: 16px 0 20px; overflow-x: auto; }
+.diagram .cap { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+pre.mermaid { margin: 0; background: transparent; text-align: center; }
+
+/* stepper (stage strips) */
+.strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin: 16px 0 20px; }
+.step { flex: 1 1 130px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.step b { display: block; font: 600 14px/1.3 var(--display); margin-bottom: 4px; }
+.step span { color: var(--muted); }
+
+/* size bars */
+.bars { display: grid; gap: 10px; margin: 14px 0 18px; }
+.bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 70px; gap: 12px; align-items: center; font-size: 14px; }
+.bar .track { height: 14px; border-radius: 7px; background: var(--surface-2); position: relative; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 7px; background: var(--c); }
+.bar .fill.old { background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.bar em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+@media (max-width: 520px) { .bar { grid-template-columns: 110px minmax(0, 1fr) 58px; font-size: 13px; } }
+
+/* lesson cards */
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.lesson { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.lesson h4 { font: 600 16px/1.3 var(--display); margin: 0 0 8px; }
+.lesson dl { margin: 0; display: grid; gap: 6px; font-size: 14px; }
+.lesson dt { font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--lesson); margin-top: 6px; }
+.lesson dd { margin: 0; color: var(--ink); }
+
+footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+<style>
+  /* standalone page: base reset (the Claude artifact viewer normally adds this) */
+  body { margin: 0; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="rail" aria-label="Chapters">
+  <h2>Chapters</h2>
+  <ol>
+    <li><a href="#big-picture"><span class="dot" style="--c:var(--k8s)"></span>Big picture</a></li>
+    <li><a href="#docker"><span class="dot" style="--c:var(--docker)"></span>Docker images</a></li>
+    <li><a href="#builds"><span class="dot" style="--c:var(--build)"></span>Parallel builds &amp; cache</a></li>
+    <li><a href="#cicd"><span class="dot" style="--c:var(--ci)"></span>CI/CD pipeline</a></li>
+    <li><a href="#k8s"><span class="dot" style="--c:var(--k8s)"></span>Kubernetes &amp; manifests</a></li>
+    <li><a href="#probes"><span class="dot" style="--c:var(--probe)"></span>Health probes</a></li>
+    <li><a href="#rollouts"><span class="dot" style="--c:var(--probe)"></span>Rolling updates</a></li>
+    <li><a href="#traffic"><span class="dot" style="--c:var(--net)"></span>Traffic &amp; ingress</a></li>
+    <li><a href="#monitoring"><span class="dot" style="--c:var(--prom)"></span>Monitoring architecture</a></li>
+    <li><a href="#dashboards"><span class="dot" style="--c:var(--graf)"></span>Reading the dashboards</a></li>
+    <li><a href="#latency"><span class="dot" style="--c:var(--graf)"></span>Latency explained</a></li>
+    <li><a href="#logs"><span class="dot" style="--c:var(--logs)"></span>Logs</a></li>
+    <li><a href="#lessons"><span class="dot" style="--c:var(--lesson)"></span>Lessons from real incidents</a></li>
+    <li><a href="#cheatsheet"><span class="dot" style="--c:var(--ci)"></span>Command cheat sheet</a></li>
+    <li><a href="#production"><span class="dot" style="--c:var(--ok)"></span>Lab vs production</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Project handbook · github.com/chavanakash/quickbook</div>
+  <h1>QuickBook <span class="tint">DevOps Handbook</span></h1>
+  <p class="lede">How a small flight &amp; train booking app is built, shipped and watched: Docker images, a parallel Jenkins pipeline, a hand-built kubeadm cluster, and Prometheus, Grafana and Loki on top. Every number here was measured on this project.</p>
+  <div class="stack">
+    <span class="chip" style="--c:var(--docker)">Docker + BuildKit</span>
+    <span class="chip" style="--c:var(--ci)">Jenkins</span>
+    <span class="chip" style="--c:var(--k8s)">Kubernetes 1.34 · kubeadm</span>
+    <span class="chip" style="--c:var(--k8s)">Kustomize · Helm</span>
+    <span class="chip" style="--c:var(--net)">Traefik</span>
+    <span class="chip" style="--c:var(--prom)">Prometheus</span>
+    <span class="chip" style="--c:var(--graf)">Grafana</span>
+    <span class="chip" style="--c:var(--logs)">Loki · Alloy</span>
+  </div>
+  <div class="facts">
+    <div class="fact" style="--c:var(--docker)"><b>6</b><span>container images</span></div>
+    <div class="fact" style="--c:var(--k8s)"><b>3</b><span>nodes (1 master, 2 workers)</span></div>
+    <div class="fact" style="--c:var(--k8s)"><b>13</b><span>app pods (6 × 2 + Postgres)</span></div>
+    <div class="fact" style="--c:var(--build)"><b>−21%</b><span>Python image size</span></div>
+    <div class="fact" style="--c:var(--build)"><b>6 s</b><span>warm rebuild of all 6</span></div>
+    <div class="fact" style="--c:var(--ok)"><b>45</b><span>unit tests (41 + 4)</span></div>
+  </div>
+</header>
+
+<!-- 1 -->
+<section class="ch" id="big-picture" style="--c:var(--k8s)">
+  <div class="ch-head"><span class="ch-num">01</span><h2>The big picture</h2><p class="sub">Five Python microservices, a React frontend and one Postgres, running on a three-VM Kubernetes cluster.</p></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    DEV([Developer]) -->|git push| GH[(GitHub)]
+    GH -->|polled every 2 min| J["Jenkins<br/>Docker Desktop"]
+    J -->|push images| HUB[(Docker Hub)]
+    J -->|kubectl apply -k| APP
+    HUB -->|pull images| APP
+    USER([Browser]) -->|"*.localhost:8088"| TR
+    subgraph K8S ["kubeadm cluster · 1 master + 2 workers on Lima VMs"]
+      TR[Traefik ingress] --> APP["namespace quickbook<br/>6 apps × 2 replicas + Postgres"]
+      APP -->|/metrics| PR[Prometheus]
+      APP -->|pod logs| AL[Grafana Alloy]
+      AL --> LK[Loki]
+      PR --> GR[Grafana]
+      LK --> GR
+    end
+</pre>
+    <p class="cap">From commit to running pods, and from running pods to dashboards.</p>
+  </div>
+
+  <h3>Request path inside the app</h3>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    B([Browser]) --> T[Traefik] --> F["frontend<br/>nginx gateway"]
+    F -->|/api/auth| A[auth]
+    F -->|/api/inventory| I[inventory]
+    F -->|/api/bookings| BK[booking]
+    F -->|/api/payments| P[payment]
+    F -->|/api/tickets| K[ticket]
+    BK -->|price| I
+    P -->|confirm| BK
+    K -->|booking| BK
+    A & I & BK & P --- DB[(Postgres<br/>one DB per service)]
+</pre>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Service</th><th>Job</th><th>Data</th><th>Talks to</th></tr></thead>
+    <tbody>
+      <tr><td><code>auth-service</code></td><td>Sign up, sign in, issue JWTs</td><td><code>auth_db.users</code></td><td>—</td></tr>
+      <tr><td><code>inventory-service</code></td><td>Flight &amp; train schedules, search</td><td><code>inventory_db.schedules</code></td><td>—</td></tr>
+      <tr><td><code>booking-service</code></td><td>Bookings, PNR, confirm after payment</td><td><code>booking_db.bookings</code></td><td>inventory (price)</td></tr>
+      <tr><td><code>payment-service</code></td><td>Dummy card gateway</td><td><code>payment_db.payments</code></td><td>booking (fetch, confirm)</td></tr>
+      <tr><td><code>ticket-service</code></td><td>PDF e-ticket</td><td>none (stateless)</td><td>booking</td></tr>
+      <tr><td><code>frontend</code></td><td>React UI + nginx API gateway</td><td>—</td><td>all five</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 2 -->
+<section class="ch" id="docker" style="--c:var(--docker)">
+  <div class="ch-head"><span class="ch-num">02</span><h2>Optimizing the Docker images</h2><p class="sub">Multi-stage builds: build tools and tests live in early stages and never reach the image that runs.</p></div>
+
+  <h3>Three stages in every Python Dockerfile</h3>
+  <div class="strip">
+    <div class="step" style="--c:var(--docker)"><b>builder</b><span>python:3.11-alpine → creates <code>/opt/venv</code> and installs runtime packages</span></div>
+    <div class="step" style="--c:var(--build)"><b>test</b><span>builder + pytest + tests → <code>RUN pytest -q</code>. Build fails if a test fails.</span></div>
+    <div class="step" style="--c:var(--ok)"><b>runtime</b> (default)<span>fresh python:3.11-alpine + only <code>/opt/venv</code> and <code>app/</code>, non-root user 10001</span></div>
+  </div>
+  <div class="code" style="--c:var(--docker)"><span class="label">services/*/Dockerfile</span><button class="copy" type="button">Copy</button><pre><span class="c"># ---- builder ----</span>
+<span class="k">FROM</span> python:3.11-alpine AS builder
+<span class="k">WORKDIR</span> /app
+<span class="k">RUN</span> python -m venv /opt/venv
+<span class="k">ENV</span> PATH="/opt/venv/bin:$PATH"
+<span class="k">COPY</span> requirements.txt .
+<span class="c"># BuildKit cache mount: pip's downloads are reused across builds but never stored in the image</span>
+<span class="k">RUN</span> --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
+
+<span class="c"># ---- test (CI runs: docker build --target test) ----</span>
+<span class="k">FROM</span> builder AS test
+<span class="k">COPY</span> requirements-dev.txt .
+<span class="k">RUN</span> --mount=type=cache,target=/root/.cache/pip pip install -r requirements-dev.txt
+<span class="k">COPY</span> pytest.ini .
+<span class="k">COPY</span> app ./app
+<span class="k">COPY</span> tests ./tests
+<span class="k">RUN</span> pytest -q
+
+<span class="c"># ---- runtime (default target) ----</span>
+<span class="k">FROM</span> python:3.11-alpine AS runtime
+<span class="k">ENV</span> PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
+<span class="k">RUN</span> adduser -D -u 10001 appuser
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> --from=builder /opt/venv /opt/venv
+<span class="k">COPY</span> app ./app
+<span class="k">USER</span> 10001
+<span class="k">CMD</span> ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]</pre></div>
+
+  <h3>What each technique buys</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Technique</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Alpine base</strong> for runtime</td><td>~50 MB base instead of ~130 MB for <code>python:3.11-slim</code></td></tr>
+      <tr><td><strong>venv copied from builder</strong></td><td>Only installed packages reach the image: no pip cache, no build leftovers, no tests, no pytest</td></tr>
+      <tr><td><strong>requirements before code</strong></td><td>Layer order: dependencies change rarely, code often. A code change reuses the cached <code>pip install</code> layer.</td></tr>
+      <tr><td><strong>Cache mounts</strong> (<code>--mount=type=cache</code>)</td><td>pip/npm downloads persist between builds outside the image, so re-installs don't re-download</td></tr>
+      <tr><td><strong><code>.dockerignore</code></strong></td><td>Keeps <code>__pycache__</code>, <code>.venv</code>, <code>*.db</code>, <code>node_modules</code> out of the build context</td></tr>
+      <tr><td><strong>Non-root user</strong> (uid 10001) + nginx-unprivileged</td><td>Kubernetes <code>runAsNonRoot</code> passes; a container escape lands as an unprivileged user</td></tr>
+      <tr><td><strong>OCI labels</strong></td><td><code>org.opencontainers.image.revision</code> stores the git commit inside each image</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Measured result</h3>
+  <p>Size on disk, before (slim, single stage) and after (Alpine, multi-stage):</p>
+  <div class="bars" role="list">
+    <div class="bar" role="listitem"><span>auth (before)</span><div class="track"><div class="fill old" style="width:97%"></div></div><em>284 MB</em></div>
+    <div class="bar" role="listitem" style="--c:var(--docker)"><span>auth (after)</span><div class="track"><div class="fill" style="width:72%"></div></div><em>211 MB</em></div>
+    <div class="bar" role="listitem"><span>ticket (before)</span><div class="track"><div class="fill old" style="width:100%"></div></div><em>292 MB</em></div>
+    <div class="bar" role="listitem" style="--c:var(--docker)"><span>ticket (after)</span><div class="track"><div class="fill" style="width:71%"></div></div><em>207 MB</em></div>
+    <div class="bar" role="listitem" style="--c:var(--build)"><span>frontend</span><div class="track"><div class="fill" style="width:26%"></div></div><em>76 MB</em></div>
+  </div>
+  <p>Every Python image shrank <strong>21–23%</strong> (about 75 MB on disk; the compressed download went from ~59 MB to ~46 MB). The frontend was already multi-stage (Node builds, nginx serves), so it stayed at 76 MB.</p>
+
+  <h3>Frontend: Node only at build time</h3>
+  <div class="strip">
+    <div class="step" style="--c:var(--build)"><b>deps</b><span>node:20-alpine, <code>npm ci</code> with npm cache mount</span></div>
+    <div class="step" style="--c:var(--build)"><b>test</b><span><code>npm test</code> (Vitest)</span></div>
+    <div class="step" style="--c:var(--build)"><b>build</b><span><code>npm run build</code> → static files in <code>dist/</code></span></div>
+    <div class="step" style="--c:var(--ok)"><b>runtime</b><span>nginx-unprivileged + <code>dist/</code> + <code>nginx.conf</code>, port 8080</span></div>
+  </div>
+
+  <div class="code" style="--c:var(--docker)"><span class="label">inspect it yourself</span><button class="copy" type="button">Copy</button><pre>docker build -t auth:local services/auth-service           <span class="c"># runtime image (default target)</span>
+docker build --target test services/auth-service           <span class="c"># runs the unit tests in the image</span>
+docker images auth:local                                   <span class="c"># size on disk</span>
+docker history auth:local                                  <span class="c"># layer by layer</span>
+docker run --rm auth:local sh -c 'id -u; ls /app'          <span class="c"># 10001, only app/ (no tests)</span>
+docker image inspect auth:local --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}'</pre></div>
+</section>
+
+<!-- 3 -->
+<section class="ch" id="builds" style="--c:var(--build)">
+  <div class="ch-head"><span class="ch-num">03</span><h2>Parallel builds &amp; BuildKit cache</h2><p class="sub">Six images built three at a time, with tests first in every branch.</p></div>
+
+  <h3>Two batches of three</h3>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    S[Prepare] --> B1
+    subgraph B1 ["Batch 1 · parallel"]
+      a[auth-service]
+      i[inventory-service]
+      b[booking-service]
+    end
+    B1 --> B2
+    subgraph B2 ["Batch 2 · parallel"]
+      p[payment-service]
+      t[ticket-service]
+      f[frontend]
+    end
+    B2 --> P[Push all 6]
+</pre>
+    <p class="cap">Each box runs <code>docker build --target test</code>, then the runtime build. <code>failFast true</code>: one failure stops its siblings.</p>
+  </div>
+  <div class="note why"><b class="tag">Why batches and not all six at once</b><p>Docker Desktop has 4 GB of RAM. Six simultaneous builds (pip installs, an npm install, a Vite build) compete for memory and CPU; three at a time keeps the machine responsive and still roughly halves the wall-clock time.</p></div>
+
+  <h3>The same thing in plain bash</h3>
+  <p>Background each build with <code>&amp;</code>, then <code>wait</code> for the batch before starting the next one:</p>
+  <div class="code" style="--c:var(--build)"><span class="label">bash</span><button class="copy" type="button">Copy</button><pre><span class="c"># test target first, then the runtime image, for one app</span>
+tb() {
+  app=$1; ctx=services/$app; [ "$app" = frontend ] &amp;&amp; ctx=frontend
+  docker build --target test "$ctx" &amp;&amp; \
+  docker build -t "dockerizzz/quickbook-$app:$app-$BUILD_NUMBER" "$ctx"
+}
+batch() {
+  for app in "$@"; do tb "$app" &amp; done   <span class="c"># start all in the background</span>
+  wait                                   <span class="c"># block until the whole batch is done</span>
+}
+
+BUILD_NUMBER=42
+time batch auth-service inventory-service booking-service
+time batch payment-service ticket-service frontend</pre></div>
+
+  <h3>In the Jenkinsfile</h3>
+  <div class="code" style="--c:var(--ci)"><span class="label">Jenkinsfile</span><button class="copy" type="button">Copy</button><pre>stage('CI: Test &amp; build batch 1') {
+    failFast true
+    parallel {
+        stage('auth-service')      { steps { script { testAndBuild('auth-service') } } }
+        stage('inventory-service') { steps { script { testAndBuild('inventory-service') } } }
+        stage('booking-service')   { steps { script { testAndBuild('booking-service') } } }
+    }
+}
+stage('CI: Test &amp; build batch 2') { failFast true; parallel { <span class="c">/* payment, ticket, frontend */</span> } }</pre></div>
+
+  <h3>How the cache works</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Cache</th><th>What it stores</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Layer cache</strong></td><td>Result of every Dockerfile step, keyed by the step + its inputs</td><td>Docker Desktop's BuildKit, kept between Jenkins builds</td></tr>
+      <tr><td><strong>Cache mounts</strong></td><td>pip and npm download caches</td><td>BuildKit cache volume, never inside an image</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Scenario (measured)</th><th>Time</th></tr></thead>
+    <tbody>
+      <tr><td>Batch 1, cold (nothing cached)</td><td class="num">51 s</td></tr>
+      <tr><td>Batch 2, cold</td><td class="num">34 s</td></tr>
+      <tr><td>All 6 images, nothing changed</td><td class="num"><strong>6 s</strong></td></tr>
+      <tr><td>Code change in one service</td><td>only <code>COPY app</code> onward rebuilds; <code>pip install</code> shows <code>CACHED</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="code" style="--c:var(--build)"><span class="label">see the cache</span><button class="copy" type="button">Copy</button><pre>docker build --progress=plain services/auth-service 2&gt;&amp;1 | grep -E "CACHED|pip install"
+docker buildx du          <span class="c"># how much build cache exists</span>
+docker builder prune -af  <span class="c"># wipe it (next build is cold again)</span></pre></div>
+</section>
+
+<!-- 4 -->
+<section class="ch" id="cicd" style="--c:var(--ci)">
+  <div class="ch-head"><span class="ch-num">04</span><h2>The CI/CD pipeline</h2><p class="sub">Every merge to <code>main</code> is tested, built, pushed, deployed and verified, with rollback if verification fails.</p></div>
+  <div class="strip">
+    <div class="step" style="--c:var(--ci)"><b>Poll SCM</b><span>every ~2 min; GitHub can't reach a laptop for webhooks</span></div>
+    <div class="step" style="--c:var(--build)"><b>Test &amp; build</b><span>2 parallel batches of 3</span></div>
+    <div class="step" style="--c:var(--docker)"><b>Push</b><span>tags <code>&lt;app&gt;-&lt;build&gt;</code> to Docker Hub</span></div>
+    <div class="step" style="--c:var(--k8s)"><b>Deploy</b><span><code>kustomize edit set image</code> + <code>kubectl apply -k</code></span></div>
+    <div class="step" style="--c:var(--probe)"><b>Rollout status</b><span>waits up to 180 s per deployment</span></div>
+    <div class="step" style="--c:var(--ok)"><b>Smoke test</b><span>signup → book → pay → PDF</span></div>
+  </div>
+
+  <h3>Design decisions</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Topic</th><th>Choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Where tests run</td><td><code>docker build --target test</code></td><td>Same OS and packages as production; Jenkins needs no Python or Node</td></tr>
+      <tr><td>Image tag</td><td><code>auth-service-12</code></td><td>Readable; the commit is stored as an OCI label</td></tr>
+      <tr><td>Docker Hub login</td><td>throwaway <code>DOCKER_CONFIG</code> dir, removed by <code>trap</code></td><td>The token never stays on disk</td></tr>
+      <tr><td>Cluster access</td><td>service account <code>jenkins-deployer</code></td><td>Can only touch namespace <code>quickbook</code>; never cluster-admin</td></tr>
+      <tr><td>Concurrency</td><td><code>disableConcurrentBuilds()</code></td><td>Two deploys at once would fight each other</td></tr>
+      <tr><td>Rollback</td><td><code>rollout undo</code> in <code>post { failure }</code></td><td>Only for deployments running <em>this</em> build's tag, so a failure before deploy never reverts a good release</td></tr>
+    </tbody>
+  </table></div>
+  <div class="code" style="--c:var(--ci)"><span class="label">rollback guard</span><button class="copy" type="button">Copy</button><pre>for a in $APPS; do
+  current=$(kubectl -n quickbook get deployment $a -o jsonpath='{.spec.template.spec.containers[0].image}')
+  if [ "$current" = "dockerizzz/quickbook-$a:$a-$BUILD_NUMBER" ]; then
+    kubectl -n quickbook rollout undo deployment/$a
+  fi
+done</pre></div>
+
+  <h3>Jenkins' permissions (least privilege)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Object</th><th>Grants</th></tr></thead>
+    <tbody>
+      <tr><td><code>Role jenkins-deployer</code> (ns quickbook)</td><td>configmaps, secrets, services, PVCs, pods, pods/log, pods/portforward, events, deployments, statefulsets, replicasets, ingresses</td></tr>
+      <tr><td><code>ClusterRole jenkins-deployer-namespace</code></td><td><code>get</code>, <code>patch</code> on namespace <code>quickbook</code> only</td></tr>
+      <tr><td>Denied (verified)</td><td>kube-system pods, nodes, other namespaces, creating namespaces</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 5 -->
+<section class="ch" id="k8s" style="--c:var(--k8s)">
+  <div class="ch-head"><span class="ch-num">05</span><h2>Kubernetes architecture &amp; manifests</h2><p class="sub">A kubeadm cluster built by hand, and which YAML creates what.</p></div>
+
+  <h3>The cluster</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Node</th><th>Role</th><th>Runs</th></tr></thead>
+    <tbody>
+      <tr><td><code>lima-k8s-master</code> · 192.168.104.4</td><td>control plane</td><td>API server, etcd, scheduler, controller-manager, Traefik, node-exporter</td></tr>
+      <tr><td><code>lima-k8s-worker1</code> · .5</td><td>worker</td><td>app pods, monitoring pods</td></tr>
+      <tr><td><code>lima-k8s-worker2</code> · .6</td><td>worker</td><td>app pods, monitoring pods</td></tr>
+    </tbody>
+  </table></div>
+  <p>Each VM: Ubuntu 24.04, 2 CPU, 3 GB. Runtime <strong>containerd</strong> (systemd cgroups), network <strong>Flannel</strong> (pod CIDR 10.244.0.0/16), storage <strong>local-path-provisioner</strong> (kubeadm ships without a StorageClass).</p>
+
+  <h3>Namespaces</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Namespace</th><th>Contents</th><th>Installed by</th></tr></thead>
+    <tbody>
+      <tr><td><code>quickbook</code></td><td>6 Deployments, Postgres StatefulSet, Services, Ingress, Secrets</td><td>Jenkins (<code>kubectl apply -k k8s/</code>)</td></tr>
+      <tr><td><code>monitoring</code></td><td>Prometheus, Grafana, Loki, Alloy, node-exporter, kube-state-metrics</td><td>Helm (admin)</td></tr>
+      <tr><td><code>traefik</code></td><td>Traefik ingress controller</td><td>Helm (admin)</td></tr>
+      <tr><td><code>kube-system</code> · <code>kube-flannel</code> · <code>local-path-storage</code></td><td>Control plane, CoreDNS, kube-proxy, CNI, storage</td><td>kubeadm / manifests</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Manifest map: <code>k8s/</code></h3>
+  <div class="tbl"><table>
+    <thead><tr><th>File</th><th>Kind</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>kustomization.yaml</code></td><td>Kustomization</td><td>Lists every file, sets namespace, pins image tags (Jenkins edits these)</td></tr>
+      <tr><td><code>namespace.yaml</code></td><td>Namespace</td><td>Isolates the app</td></tr>
+      <tr><td><code>configmap.yaml</code></td><td>ConfigMap <code>quickbook-config</code></td><td>Non-secret settings: service URLs, log level</td></tr>
+      <tr><td><code>secrets.yaml</code></td><td>Secret ×2</td><td>JWT secret, internal token, per-service DB URLs, Postgres password</td></tr>
+      <tr><td><code>postgres/init-secret.yaml</code></td><td>Secret <code>postgres-init</code></td><td>SQL that creates one database + one user per service</td></tr>
+      <tr><td><code>postgres/statefulset.yaml</code></td><td>StatefulSet + headless Service</td><td>Stable pod name <code>postgres-0</code>, own 2 Gi PersistentVolume</td></tr>
+      <tr><td><code>services/&lt;app&gt;.yaml</code> ×5</td><td>Deployment + Service</td><td>2 replicas, probes, limits, non-root, initContainer <code>wait-for-postgres</code></td></tr>
+      <tr><td><code>services/frontend.yaml</code></td><td>Deployment + Service</td><td>nginx gateway, port 80 → 8080</td></tr>
+      <tr><td><code>ingress.yaml</code></td><td>Ingress</td><td><code>quickbook.localhost</code> → frontend</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note why"><b class="tag">Why a StatefulSet for Postgres</b><p>A Deployment's pods are interchangeable and get random names. A database needs the same identity and the same disk after every restart: a StatefulSet gives <code>postgres-0</code> its own PersistentVolumeClaim, which follows it wherever it is rescheduled.</p></div>
+
+  <h3>Resources per pod</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Workload</th><th>CPU request / limit</th><th>Memory request / limit</th></tr></thead>
+    <tbody>
+      <tr><td>Python services (×10 pods)</td><td class="num">50m / 500m</td><td class="num">128Mi / 256Mi</td></tr>
+      <tr><td>frontend (×2)</td><td class="num">25m / 200m</td><td class="num">32Mi / 128Mi</td></tr>
+      <tr><td>Postgres</td><td class="num">100m / 1</td><td class="num">256Mi / 512Mi</td></tr>
+      <tr><td>wait-for-postgres (init)</td><td class="num">10m / 100m</td><td class="num">16Mi / 64Mi</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Request</strong> = what the scheduler reserves on a node. <strong>Limit</strong> = the ceiling: above the memory limit the container is OOMKilled; above the CPU limit it is throttled.</p>
+
+  <h3>Security context on every app pod</h3>
+  <ul class="tight">
+    <li><code>runAsNonRoot: true</code> at pod level</li>
+    <li><code>allowPrivilegeEscalation: false</code> and <code>capabilities: drop: ["ALL"]</code> per container</li>
+    <li>Prometheus scrape annotations on Python pods (<code>prometheus.io/scrape</code>, port 8000)</li>
+  </ul>
+</section>
+
+<!-- 6 -->
+<section class="ch" id="probes" style="--c:var(--probe)">
+  <div class="ch-head"><span class="ch-num">06</span><h2>Health probes</h2><p class="sub">How Kubernetes decides a pod is alive, ready for traffic, or still starting.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Probe</th><th>Endpoint</th><th>Timing</th><th>If it fails</th></tr></thead>
+    <tbody>
+      <tr><td><strong>initContainer</strong> <code>wait-for-postgres</code></td><td><code>pg_isready -h postgres</code> loop</td><td>until Postgres answers</td><td>Pod stays in <code>Init:0/1</code>. The app never starts against a missing DB.</td></tr>
+      <tr><td><strong>startupProbe</strong></td><td><code>GET /health</code></td><td>every 2 s, 30 tries = 60 s</td><td>Container restarted. Until it passes, liveness is paused.</td></tr>
+      <tr><td><strong>livenessProbe</strong></td><td><code>GET /health</code></td><td>every 10 s, 3 failures</td><td>Container restarted (process is stuck)</td></tr>
+      <tr><td><strong>readinessProbe</strong></td><td><code>GET /ready</code> (runs <code>SELECT 1</code>)</td><td>every 5 s, 3 failures</td><td>Pod removed from the Service. <strong>Not</strong> restarted; traffic goes to healthy replicas.</td></tr>
+      <tr><td>Postgres readiness / liveness</td><td><code>pg_isready -U postgres</code></td><td>5 s / 10 s</td><td>Same rules as above</td></tr>
+      <tr><td>frontend</td><td><code>GET /nginx-health</code></td><td>5 s / 10 s</td><td>Same rules as above</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note why"><b class="tag">Liveness vs readiness</b><p><code>/health</code> only says "the process answers". <code>/ready</code> also checks the database. If Postgres goes down, restarting the app would not help, so liveness stays green and only readiness turns red. Tested on this cluster: with Postgres stopped, auth pods went <code>0/1</code> (no traffic) with 0 restarts, and recovered by themselves when Postgres came back.</p></div>
+</section>
+
+<!-- 7 -->
+<section class="ch" id="rollouts" style="--c:var(--probe)">
+  <div class="ch-head"><span class="ch-num">07</span><h2>Rolling updates &amp; rollback</h2><p class="sub">New versions replace old ones without dropping capacity.</p></div>
+  <div class="code" style="--c:var(--probe)"><span class="label">every Deployment</span><button class="copy" type="button">Copy</button><pre>replicas: 2
+revisionHistoryLimit: 5          <span class="c"># old ReplicaSets kept for rollout undo</span>
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0            <span class="c"># never fewer than 2 ready pods</span>
+    maxSurge: 1                  <span class="c"># 1 extra pod allowed during the update</span>
+topologySpreadConstraints:       <span class="c"># prefer one replica per worker</span>
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway</pre></div>
+  <div class="strip">
+    <div class="step" style="--c:var(--muted)"><b>Start</b><span>old ✓ old ✓</span></div>
+    <div class="step" style="--c:var(--probe)"><b>Surge</b><span>old ✓ old ✓ new …</span></div>
+    <div class="step" style="--c:var(--probe)"><b>New ready</b><span>readiness passes, one old pod removed</span></div>
+    <div class="step" style="--c:var(--probe)"><b>Repeat</b><span>old ✓ new ✓ new …</span></div>
+    <div class="step" style="--c:var(--ok)"><b>Done</b><span>new ✓ new ✓, 2 ready throughout</span></div>
+  </div>
+  <p>If a new pod never becomes ready, the rollout stops and the old pods keep serving. Jenkins' <code>rollout status --timeout=180s</code> then fails the build, and the rollback guard undoes it.</p>
+  <div class="code" style="--c:var(--probe)"><span class="label">rollout commands</span><button class="copy" type="button">Copy</button><pre>kubectl -n quickbook rollout status  deployment/auth-service
+kubectl -n quickbook rollout history deployment/auth-service
+kubectl -n quickbook rollout undo    deployment/auth-service               <span class="c"># previous version</span>
+kubectl -n quickbook rollout undo    deployment/auth-service --to-revision=3
+kubectl -n quickbook rollout restart deployment/auth-service               <span class="c"># same version, pods replaced one by one</span></pre></div>
+  <div class="note gotcha"><b class="tag">Known gaps</b><p>No <code>preStop</code> delay: a request can still arrive in the instant an old pod shuts down. No PodDisruptionBudget: <code>kubectl drain</code> could evict both replicas at once. Postgres is a single replica, so replacing its pod means a short database outage.</p></div>
+</section>
+
+<!-- 8 -->
+<section class="ch" id="traffic" style="--c:var(--net)">
+  <div class="ch-head"><span class="ch-num">08</span><h2>Traffic &amp; ingress</h2><p class="sub">How a browser on the Mac reaches a pod inside a VM.</p></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    B([Browser on Mac]) -->|quickbook.localhost:8088| L[Lima port-forward]
+    L --> T["Traefik on k8s-master<br/>hostNetwork :8088"]
+    T -->|Host: quickbook.localhost| F[frontend Service]
+    T -->|Host: grafana.localhost| G[Grafana Service]
+    T -->|Host: prometheus.localhost| P[Prometheus Service]
+    F --> N["nginx routes /api/*<br/>to the microservices"]
+</pre>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Piece</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Traefik (not ingress-nginx)</td><td>ingress-nginx was retired in March 2026</td></tr>
+      <tr><td><code>hostNetwork: true</code> on the master</td><td>Lima forwards real listening sockets from a VM to the Mac, so Traefik must listen on the node itself</td></tr>
+      <tr><td>Port 8088</td><td>8080 is Jenkins on the Mac; Traefik metrics moved to 9102 because node-exporter owns 9100</td></tr>
+      <tr><td>nginx gateway</td><td><code>/api/auth</code>, <code>/api/inventory</code>, <code>/api/bookings</code>, <code>/api/payments</code>, <code>/api/tickets</code>; <code>/internal/*</code> returns 404</td></tr>
+      <tr><td>Service DNS</td><td>CoreDNS resolves <code>booking-service</code> → ClusterIP; kube-proxy forwards to a ready pod</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 9 -->
+<section class="ch" id="monitoring" style="--c:var(--prom)">
+  <div class="ch-head"><span class="ch-num">09</span><h2>Monitoring architecture</h2><p class="sub">Who produces each metric, who collects it, and where you see it.</p></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    subgraph Sources
+      NE["node-exporter<br/>DaemonSet, every node"]
+      KL["kubelet + cAdvisor<br/>every node"]
+      KSM[kube-state-metrics]
+      API[API server]
+      DNS[CoreDNS]
+      APPS["QuickBook services<br/>/metrics"]
+    end
+    SM["ServiceMonitor<br/>quickbook-services"] -.selects.-> APPS
+    OP[Prometheus Operator] -.writes scrape config.-> PR
+    NE & KL & KSM & API & DNS & APPS -->|scrape every 30 s| PR[("Prometheus<br/>3 days · 5 Gi PV")]
+    PR --> GR[Grafana]
+</pre>
+  </div>
+  <h3>What each source answers</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Source</th><th>Runs as</th><th>Answers</th><th>Example metric</th></tr></thead>
+    <tbody>
+      <tr><td><strong>node-exporter</strong></td><td>DaemonSet (1 per node)</td><td>Node CPU, memory, disk, network</td><td><code>node_cpu_seconds_total</code>, <code>node_memory_MemAvailable_bytes</code></td></tr>
+      <tr><td><strong>kubelet / cAdvisor</strong></td><td>built into every node</td><td>CPU and memory per container</td><td><code>container_cpu_usage_seconds_total</code>, <code>container_memory_working_set_bytes</code></td></tr>
+      <tr><td><strong>kube-state-metrics</strong></td><td>Deployment</td><td>Object state: pod phase, restarts, ready replicas</td><td><code>kube_pod_status_phase</code>, <code>kube_deployment_status_replicas_available</code></td></tr>
+      <tr><td><strong>QuickBook services</strong></td><td>the apps (<code>/metrics</code>)</td><td>HTTP traffic, latency, errors + business events</td><td><code>http_requests_total</code>, <code>quickbook_revenue_inr_total</code></td></tr>
+      <tr><td>API server, CoreDNS</td><td>control plane</td><td>Cluster internals</td><td><code>apiserver_request_total</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note why"><b class="tag">ServiceMonitor, the Operator way</b><p>Instead of editing <code>prometheus.yml</code>, you create a <code>ServiceMonitor</code> object that says "scrape port <code>http</code>, path <code>/metrics</code>, on Services labelled <code>app in (auth, inventory, booking, payment, ticket)</code> in namespace <code>quickbook</code>". The Prometheus Operator turns it into scrape config. The frontend and Postgres aren't selected because they have no app metrics.</p></div>
+
+  <h3>Business metrics the services emit</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Metric</th><th>Type</th><th>Service</th></tr></thead>
+    <tbody>
+      <tr><td><code>quickbook_registered_users</code></td><td>gauge (counts DB rows on each scrape)</td><td>auth</td></tr>
+      <tr><td><code>quickbook_signups_total</code>, <code>quickbook_signins_total{result}</code></td><td>counter</td><td>auth</td></tr>
+      <tr><td><code>quickbook_searches_total{mode}</code></td><td>counter</td><td>inventory</td></tr>
+      <tr><td><code>quickbook_bookings_created_total{mode}</code>, <code>…_confirmed_total{mode}</code></td><td>counter</td><td>booking</td></tr>
+      <tr><td><code>quickbook_payments_total{status}</code>, <code>quickbook_revenue_inr_total</code></td><td>counter</td><td>payment</td></tr>
+      <tr><td><code>quickbook_tickets_generated_total</code></td><td>counter</td><td>ticket</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Counter</strong> only goes up (reset on restart); dashboards use <code>rate()</code> or <code>increase()</code> on it. <strong>Gauge</strong> goes up and down; dashboards read it directly.</p>
+
+  <h3>Monitoring stack sizing</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Component</th><th>Memory request / limit</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Prometheus</td><td class="num">400Mi / 1Gi</td><td>retention 3 d or 4 GB</td></tr>
+      <tr><td>Grafana</td><td class="num">256Mi / 768Mi</td><td>was OOMKilled at 384Mi (see Lessons)</td></tr>
+      <tr><td>Loki (single binary)</td><td class="num">256Mi / 768Mi</td><td>filesystem storage, 3-day retention</td></tr>
+      <tr><td>Alloy</td><td class="num">96Mi / 256Mi</td><td>1 replica, reads logs via the API server</td></tr>
+      <tr><td>kube-state-metrics · node-exporter · operator</td><td class="num">32Mi · 24Mi · 64Mi</td><td>small</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 10 -->
+<section class="ch" id="dashboards" style="--c:var(--graf)">
+  <div class="ch-head"><span class="ch-num">10</span><h2>Reading the dashboards</h2><p class="sub">Every panel on <em>QuickBook Overview</em>, the query behind it, and where its data comes from.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Panel</th><th>Query (simplified)</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Registered users</td><td><code>max(quickbook_registered_users)</code></td><td>auth /metrics</td></tr>
+      <tr><td>Sign-ups, sign-ins, revenue…</td><td><code>sum(increase(quickbook_signups_total[$__range]))</code></td><td>services</td></tr>
+      <tr><td>Booking funnel</td><td><code>sum by (mode)(rate(quickbook_bookings_created_total[…])) * 60</code></td><td>services</td></tr>
+      <tr><td>Requests per second</td><td><code>sum by (job)(rate(http_requests_total{namespace="quickbook"}[…]))</code></td><td>services</td></tr>
+      <tr><td>Error rate (5xx %)</td><td><code>100 * 5xx rate / all requests rate</code></td><td>services</td></tr>
+      <tr><td>Latency p95</td><td><code>histogram_quantile(0.95, sum by (job, le)(rate(…_bucket[…])))</code></td><td>services</td></tr>
+      <tr><td>Running pods / not ready</td><td><code>kube_pod_status_phase</code>, <code>kube_pod_status_ready</code></td><td>kube-state-metrics</td></tr>
+      <tr><td>Available replicas</td><td><code>kube_deployment_status_replicas_available</code></td><td>kube-state-metrics</td></tr>
+      <tr><td>Restarts per service</td><td><code>increase(kube_pod_container_status_restarts_total[10m])</code></td><td>kube-state-metrics</td></tr>
+      <tr><td>CPU / memory per service</td><td><code>container_cpu_usage_seconds_total</code>, <code>container_memory_working_set_bytes</code></td><td>cAdvisor</td></tr>
+      <tr><td>Node CPU / memory / disk</td><td><code>node_cpu_seconds_total</code>, <code>node_memory_*</code>, <code>node_filesystem_*</code></td><td>node-exporter</td></tr>
+      <tr><td>Log lines, errors, log viewer</td><td><code>count_over_time({namespace="quickbook"}[…])</code></td><td>Loki</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note why"><b class="tag">The RED method</b><p>For every service, watch three things: <strong>R</strong>ate (requests per second), <strong>E</strong>rrors (5xx %), <strong>D</strong>uration (p95 latency). The Traffic row of the dashboard is exactly that.</p></div>
+  <h3>Other dashboards worth opening</h3>
+  <ul class="tight">
+    <li><strong>Node Exporter / Nodes</strong>: one VM in depth (CPU, load, memory, disk I/O, filesystems)</li>
+    <li><strong>Kubernetes / Compute Resources / Cluster</strong>: usage vs requests vs limits per namespace</li>
+    <li><strong>Kubernetes / Compute Resources / Namespace (Pods)</strong>: with <code>quickbook</code> selected</li>
+  </ul>
+  <div class="code" style="--c:var(--graf)"><span class="label">dashboard as code</span><button class="copy" type="button">Copy</button><pre>python3 monitoring/dashboards/generate.py   <span class="c"># regenerate quickbook-overview.json</span>
+kubectl apply -k monitoring/                 <span class="c"># ConfigMap labelled grafana_dashboard=1 → Grafana loads it</span></pre></div>
+</section>
+
+<!-- 11 -->
+<section class="ch" id="latency" style="--c:var(--graf)">
+  <div class="ch-head"><span class="ch-num">11</span><h2>Latency explained</h2><p class="sub">What "p95" means, and why one panel can't show more than one second.</p></div>
+  <p><strong>Latency</strong> is how long a request takes, from arriving at the service to the response leaving it. An average hides slow requests, so we use <strong>percentiles</strong>:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>p50 (median)</td><td>Half of requests were faster than this</td></tr>
+      <tr><td><strong>p95</strong></td><td>95% were faster; the slowest 1 in 20 took at least this long</td></tr>
+      <tr><td>p99</td><td>99% were faster; shows rare slow outliers</td></tr>
+    </tbody>
+  </table></div>
+  <h3>How Prometheus computes it</h3>
+  <p>The services don't record each duration. They count requests into <strong>histogram buckets</strong>: "≤ 0.1 s", "≤ 0.5 s", "≤ 1 s", "anything". <code>histogram_quantile(0.95, …)</code> then finds the bucket where 95% of requests fall and interpolates inside it.</p>
+  <div class="note gotcha"><b class="tag">Bucket limit on this project</b><p>The per-endpoint histogram (<code>http_request_duration_seconds</code>, from prometheus-fastapi-instrumentator) only has buckets <code>0.1 · 0.5 · 1 · +Inf</code>. Any request slower than 1 s lands in "+Inf", so the panel <strong>can never show more than 1 s</strong>. auth-service shows exactly "1 s" under load: that means "at least 1 s". A second histogram, <code>http_request_duration_highr_seconds</code>, has 21 finer buckets (but no per-endpoint label); switching the panel to it, or adding custom buckets, would show the real value.</p></div>
+  <h3>Why auth-service is the slowest</h3>
+  <p>Passwords are hashed with <strong>bcrypt</strong>, which is deliberately slow to make brute-forcing expensive. Every sign-up and sign-in burns CPU, and each auth pod is limited to 0.5 CPU. With 10 simulated users at once, requests queue. The other services stay under 0.5 s at p95.</p>
+</section>
+
+<!-- 12 -->
+<section class="ch" id="logs" style="--c:var(--logs)">
+  <div class="ch-head"><span class="ch-num">12</span><h2>Logs</h2><p class="sub">Every pod's stdout, searchable in Grafana next to the metrics.</p></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    P["All pods<br/>JSON logs on stdout"] -->|K8s API| A["Grafana Alloy<br/>discover · label · parse level"]
+    T["Traefik<br/>JSON access log"] --> A
+    A -->|push| L[("Loki<br/>3 days · 5 Gi")]
+    L --> G[Grafana]
+</pre>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Label</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>namespace</code> · <code>app</code> · <code>pod</code> · <code>container</code> · <code>node</code></td><td><code>quickbook</code>, <code>payment-service</code>, <code>lima-k8s-worker2</code></td></tr>
+      <tr><td><code>level</code> (from the JSON field)</td><td><code>INFO</code>, <code>WARNING</code>, <code>ERROR</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Each request log line carries a <code>request_id</code>. nginx sets it as <code>X-Request-ID</code> and passes it on, so one search follows a request across services.</p>
+  <div class="code" style="--c:var(--logs)"><span class="label">LogQL in Grafana → Explore → Loki</span><button class="copy" type="button">Copy</button><pre>{namespace="quickbook", app="payment-service"}
+{namespace="quickbook", level="ERROR"}
+{namespace="quickbook"} | json | status &gt;= 400
+{namespace="quickbook"} | json | request_id="&lt;id&gt;"          <span class="c"># one request, all services</span>
+{namespace="traefik"}   | json | DownstreamStatus &gt;= 500   <span class="c"># failures at the ingress</span></pre></div>
+  <div class="note why"><b class="tag">Why Loki and Alloy</b><p>Loki indexes only labels, not full text, so it is light enough for a 3 GB node. Alloy replaced Promtail, which reached end-of-life in early 2026.</p></div>
+</section>
+
+<!-- 13 -->
+<section class="ch" id="lessons" style="--c:var(--lesson)">
+  <div class="ch-head"><span class="ch-num">13</span><h2>Lessons from real incidents</h2><p class="sub">Problems hit while building this, and how each was diagnosed.</p></div>
+  <div class="lessons">
+    <div class="lesson"><h4>Pods restarted on first deploy</h4><dl>
+      <dt>Symptom</dt><dd>DB services: 1–2 restarts each</dd>
+      <dt>Cause</dt><dd>Postgres took ~40 s (volume + image + initdb); apps gave up after 30 s</dd>
+      <dt>Fix</dt><dd><code>wait-for-postgres</code> initContainer; verified by stopping Postgres: 0 restarts</dd></dl></div>
+    <div class="lesson"><h4>Grafana kept disappearing</h4><dl>
+      <dt>Symptom</dt><dd>Traefik: "no available server"</dd>
+      <dt>Cause</dt><dd><code>lastState: OOMKilled</code> at the 384Mi limit, loading a 30-panel dashboard</dd>
+      <dt>Fix</dt><dd>Limit raised to 768Mi; 0 restarts since</dd></dl></div>
+    <div class="lesson"><h4>Jenkins couldn't use Docker</h4><dl>
+      <dt>Symptom</dt><dd><code>permission denied … docker.sock</code></dd>
+      <dt>Cause</dt><dd>Socket is <code>root:root 660</code>; Jenkins runs as uid 1000</dd>
+      <dt>Fix</dt><dd><code>group_add: ["0"]</code> instead of running Jenkins as root</dd></dl></div>
+    <div class="lesson"><h4>Traefik would not start</h4><dl>
+      <dt>Symptom</dt><dd>Caught in <code>helm template</code> before install</dd>
+      <dt>Cause</dt><dd>Traefik metrics default 9100 = node-exporter's port on the host network</dd>
+      <dt>Fix</dt><dd>Metrics on 9102</dd></dl></div>
+    <div class="lesson"><h4>Multipass broken on this Mac</h4><dl>
+      <dt>Symptom</dt><dd>"Remote release unreachable", then qemu-img crash</dd>
+      <dt>Cause</dt><dd>Bundled <code>qemu-img</code> segfaults (exit 139), reproduced by hand</dd>
+      <dt>Fix</dt><dd>Lima with Apple's Virtualization framework (<code>--vm-type=vz</code>)</dd></dl></div>
+    <div class="lesson"><h4>Scripts couldn't find *.localhost</h4><dl>
+      <dt>Symptom</dt><dd><code>nodename nor servname provided</code></dd>
+      <dt>Cause</dt><dd>Browsers resolve <code>*.localhost</code> themselves; macOS doesn't</dd>
+      <dt>Fix</dt><dd>Scripts connect to 127.0.0.1 and send the Host header</dd></dl></div>
+    <div class="lesson"><h4>Docker Hub pulls failed</h4><dl>
+      <dt>Symptom</dt><dd>401, then 429 "too many failed login attempts"</dd>
+      <dt>Cause</dt><dd>Docker Desktop signed in with a revoked token</dd>
+      <dt>Fix</dt><dd>Re-login; stop retrying while locked out</dd></dl></div>
+    <div class="lesson"><h4>"configured" on every apply</h4><dl>
+      <dt>Symptom</dt><dd>Secrets and StatefulSet always reported as changed</dd>
+      <dt>Cause</dt><dd><code>stringData</code> and defaulted <code>volumeClaimTemplates</code> fields</dd>
+      <dt>Check</dt><dd>Generation stayed 1, values matched: harmless</dd></dl></div>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="ch" id="cheatsheet" style="--c:var(--ci)">
+  <div class="ch-head"><span class="ch-num">14</span><h2>Command cheat sheet</h2><p class="sub">The commands used most while running this project.</p></div>
+  <div class="code" style="--c:var(--k8s)"><span class="label">cluster</span><button class="copy" type="button">Copy</button><pre>limactl start k8s-master k8s-worker1 k8s-worker2      <span class="c"># start the VMs</span>
+limactl stop  k8s-master k8s-worker1 k8s-worker2      <span class="c"># free ~9 GB RAM</span>
+limactl shell k8s-master                              <span class="c"># shell into a node</span>
+kubectl get nodes -o wide
+kubectl -n quickbook get pods -o wide
+kubectl -n quickbook describe pod &lt;pod&gt;               <span class="c"># events: probes, OOMKilled, pulls</span>
+kubectl -n quickbook logs deploy/booking-service -f
+kubectl top pod -A                                    <span class="c"># needs metrics-server; else use Grafana</span></pre></div>
+  <div class="code" style="--c:var(--build)"><span class="label">app</span><button class="copy" type="button">Copy</button><pre>kubectl apply -k k8s/                                                   <span class="c"># deploy by hand</span>
+python3 scripts/smoke_test.py      http://quickbook.localhost:8088       <span class="c"># end-to-end check</span>
+python3 scripts/simulate_users.py  http://quickbook.localhost:8088 100 10   <span class="c"># 100 users, 10 at a time</span></pre></div>
+  <div class="code" style="--c:var(--prom)"><span class="label">monitoring</span><button class="copy" type="button">Copy</button><pre>kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
+open http://grafana.localhost:8088
+open http://prometheus.localhost:8088/targets                          <span class="c"># is every target UP?</span>
+helm list -A                                                          <span class="c"># monitoring, loki, alloy, traefik</span></pre></div>
+  <div class="code" style="--c:var(--ci)"><span class="label">jenkins</span><button class="copy" type="button">Copy</button><pre>docker compose -f ci/jenkins/docker-compose.yml up -d --build
+docker logs -f quickbook-jenkins
+open http://localhost:8080</pre></div>
+</section>
+
+<!-- 15 -->
+<section class="ch" id="production" style="--c:var(--ok)">
+  <div class="ch-head"><span class="ch-num">15</span><h2>Lab vs production</h2><p class="sub">Choices made to fit a laptop, and what a real deployment would use instead.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>This lab</th><th>Production</th></tr></thead>
+    <tbody>
+      <tr><td>Control plane</td><td>1 master</td><td>3 masters (etcd quorum)</td></tr>
+      <tr><td>Ingress</td><td>1 Traefik pod, hostNetwork, <code>*.localhost</code></td><td>2+ pods behind a LoadBalancer, real DNS, TLS via cert-manager</td></tr>
+      <tr><td>Secrets</td><td>Plain YAML in git (lab values)</td><td>Sealed Secrets, External Secrets or Vault</td></tr>
+      <tr><td>Database</td><td>1 Postgres pod, local-path volume</td><td>Managed DB (RDS, Cloud SQL) or a replicated operator</td></tr>
+      <tr><td>CI agents</td><td>Jenkins with the Docker socket</td><td>Isolated build agents (Kubernetes pods, Kaniko, BuildKit)</td></tr>
+      <tr><td>Deploy trigger</td><td>Poll SCM every 2 min</td><td>Webhooks, or GitOps with Argo CD</td></tr>
+      <tr><td>Alerting</td><td>Off</td><td>Alertmanager → Slack/PagerDuty on restarts, 5xx rate, node pressure</td></tr>
+      <tr><td>Control-plane metrics</td><td>etcd, scheduler, controller-manager not scraped</td><td>Bound to the node IP and scraped</td></tr>
+      <tr><td>Releases</td><td>Rolling update</td><td>Canary or blue/green with Argo Rollouts</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>QuickBook DevOps Handbook · repository <a href="https://github.com/chavanakash/quickbook">github.com/chavanakash/quickbook</a> · figures measured on the lab cluster in October 2026.</footer>
+</main>
+</div>
+
+<script>
+document.querySelectorAll('.code').forEach(function (box) {
+  var btn = box.querySelector('.copy');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var text = box.querySelector('pre').innerText;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+    var fallback = function () {
+      var range = document.createRange(); range.selectNodeContents(box.querySelector('pre'));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = 'Selected, press ⌘C';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+});
+</script>
+<!-- Diagrams: Mermaid is bundled into the container image (works offline). -->
+<script src="mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default' });
+</script>
+</body>
+</html>

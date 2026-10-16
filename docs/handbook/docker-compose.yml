@@ -1,0 +1,19 @@
+# Always-on handbook on Docker Desktop:  docker compose -f docs/handbook/docker-compose.yml up -d --build
+# Open http://localhost:8099
+name: quickbook-handbook
+
+services:
+  handbook:
+    build: .
+    image: quickbook-handbook:local
+    container_name: quickbook-handbook
+    ports:
+      - "8099:8080"
+    # always = restart on crash AND start again every time Docker Desktop starts
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    mem_limit: 64m

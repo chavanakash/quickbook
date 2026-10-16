@@ -224,6 +224,7 @@ python3 scripts/smoke_test.py         # end-to-end check
 | [monitoring/README.md](monitoring/README.md) | Prometheus, Grafana, Loki, business metrics, LogQL |
 | [ingress/README.md](ingress/README.md) | Traefik and how traffic reaches the cluster |
 | [docs/development.md](docs/development.md) | Local development, tests, config, API endpoints |
+| [docs/handbook/](docs/handbook/index.html) | **DevOps handbook**: images, parallel builds, cache, manifests, probes, rollouts, monitoring, latency, lessons learned. Run it locally: `docker compose -f docs/handbook/docker-compose.yml up -d` → http://localhost:8099 |
 
 ---
 <sub>Demo project for learning DevOps — payments are fake and tickets are not valid for travel.
