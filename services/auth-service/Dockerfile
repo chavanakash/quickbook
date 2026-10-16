@@ -1,33 +1,39 @@
-# ---- base: runtime dependencies, shared by the test and runtime stages ----
-# Slim base = smaller image, faster pulls, fewer CVEs than the full python image.
-FROM python:3.11-slim AS base
+# Multi-stage build:
+#   builder -> installs dependencies into a virtualenv (/opt/venv)
+#   test    -> builder + test tools + tests; CI runs `docker build --target test`
+#   runtime -> fresh Alpine base + only the virtualenv and app code (default target)
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
+# ---- builder ----
+FROM python:3.11-alpine AS builder
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
-
-# Copy requirements first so the dependency layer is cached when only code changes.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+# BuildKit cache mount: pip's download cache is reused across builds but never stored in the image.
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
 
-# ---- test: CI runs `docker build --target test` - the build fails if any test fails ----
-FROM base AS test
+# ---- test ----
+FROM builder AS test
 COPY requirements-dev.txt .
-RUN pip install -r requirements-dev.txt
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements-dev.txt
 COPY pytest.ini .
 COPY app ./app
 COPY tests ./tests
 RUN pytest -q
 
-# ---- runtime (default target): only app code, no tests or test tools ----
-FROM base AS runtime
+# ---- runtime ----
+FROM python:3.11-alpine AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
 
 # Run as a non-root user (Kubernetes security best practice).
-RUN useradd --create-home --uid 10001 appuser
+RUN adduser -D -u 10001 appuser
+WORKDIR /app
 
+# Only the installed packages come across - no pip cache, no build leftovers, no tests.
+COPY --from=builder /opt/venv /opt/venv
 COPY app ./app
 
 USER 10001

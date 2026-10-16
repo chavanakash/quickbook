@@ -1,10 +1,28 @@
 // QuickBook CI/CD pipeline
-//   CI: unit tests (inside Docker) -> build images -> push to Docker Hub
+//   CI: test + build images in two parallel batches of 3 -> push to Docker Hub
 //   CD: deploy to Kubernetes -> wait for rollout -> smoke test -> auto-rollback on failure
+//
+// Image tag format: <app>-<build number>, e.g. dockerizzz/quickbook-auth-service:auth-service-12
+// The git commit is stored inside each image as the OCI label org.opencontainers.image.revision.
 //
 // Jenkins credentials this pipeline expects (Manage Jenkins -> Credentials):
 //   dockerhub             Username with password  (Docker Hub user + access token)
 //   kubeconfig-quickbook  Secret file             (output of ci/jenkins/make-kubeconfig.sh)
+
+// Runs one app's unit tests (Dockerfile "test" stage), then builds its runtime image.
+def testAndBuild(String app) {
+    def context = (app == 'frontend') ? 'frontend' : "services/${app}"
+    sh """
+        echo "==> ${app}: unit tests"
+        docker build --target test ${context}
+        echo "==> ${app}: runtime image"
+        docker build \
+            --label org.opencontainers.image.revision=${env.GIT_COMMIT} \
+            --label org.opencontainers.image.source=https://github.com/chavanakash/quickbook \
+            -t ${env.REGISTRY_NAMESPACE}/quickbook-${app}:${app}-${env.BUILD_NUMBER} \
+            ${context}
+    """
+}
 
 pipeline {
     agent any
@@ -22,8 +40,8 @@ pipeline {
     }
 
     environment {
+        DOCKER_BUILDKIT = '1'                // BuildKit: parallel stages, layer cache, cache mounts
         REGISTRY_NAMESPACE = 'dockerizzz'
-        SERVICES = 'auth-service inventory-service booking-service payment-service ticket-service'
         APPS = 'auth-service inventory-service booking-service payment-service ticket-service frontend'
         NAMESPACE = 'quickbook'
     }
@@ -32,37 +50,28 @@ pipeline {
         stage('Prepare') {
             steps {
                 script {
-                    // Tag = build number + commit, so every running image maps to an exact commit.
-                    def commit = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-                    env.IMAGE_TAG = "${env.BUILD_NUMBER}-${commit}"
-                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.IMAGE_TAG}"
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.GIT_COMMIT.take(7)}"
                 }
-                echo "Image tag for this build: ${env.IMAGE_TAG}"
+                echo "Building commit ${env.GIT_COMMIT}; tags will be <app>-${env.BUILD_NUMBER}"
             }
         }
 
-        stage('CI: Unit tests') {
-            steps {
-                // Each Dockerfile has a "test" stage; the build fails if any test fails.
-                sh '''
-                    for s in $SERVICES; do
-                        echo "==> testing $s"
-                        docker build --target test services/$s
-                    done
-                    echo "==> testing frontend"
-                    docker build --target test frontend
-                '''
+        // Batch 1 and batch 2 run one after the other; the 3 images inside a batch build in parallel.
+        stage('CI: Test & build batch 1') {
+            failFast true                    // one failure stops the other branches
+            parallel {
+                stage('auth-service')      { steps { script { testAndBuild('auth-service') } } }
+                stage('inventory-service') { steps { script { testAndBuild('inventory-service') } } }
+                stage('booking-service')   { steps { script { testAndBuild('booking-service') } } }
             }
         }
 
-        stage('CI: Build images') {
-            steps {
-                sh '''
-                    for s in $SERVICES; do
-                        docker build -t $REGISTRY_NAMESPACE/quickbook-$s:$IMAGE_TAG services/$s
-                    done
-                    docker build -t $REGISTRY_NAMESPACE/quickbook-frontend:$IMAGE_TAG frontend
-                '''
+        stage('CI: Test & build batch 2') {
+            failFast true
+            parallel {
+                stage('payment-service')   { steps { script { testAndBuild('payment-service') } } }
+                stage('ticket-service')    { steps { script { testAndBuild('ticket-service') } } }
+                stage('frontend')          { steps { script { testAndBuild('frontend') } } }
             }
         }
 
@@ -77,7 +86,7 @@ pipeline {
                         trap 'rm -rf "$DOCKER_CONFIG"' EXIT
                         echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin
                         for a in $APPS; do
-                            docker push $REGISTRY_NAMESPACE/quickbook-$a:$IMAGE_TAG
+                            docker push $REGISTRY_NAMESPACE/quickbook-$a:$a-$BUILD_NUMBER
                         done
                     '''
                 }
@@ -91,7 +100,7 @@ pipeline {
                     sh '''
                         cd k8s
                         for a in $APPS; do
-                            kustomize edit set image $REGISTRY_NAMESPACE/quickbook-$a:$IMAGE_TAG
+                            kustomize edit set image $REGISTRY_NAMESPACE/quickbook-$a:$a-$BUILD_NUMBER
                         done
                         grep -A1 "name: $REGISTRY_NAMESPACE" kustomization.yaml
                     '''
@@ -134,7 +143,7 @@ pipeline {
                         sh '''
                             for a in $APPS; do
                                 current=$(kubectl -n $NAMESPACE get deployment $a -o jsonpath='{.spec.template.spec.containers[0].image}')
-                                if [ "$current" = "$REGISTRY_NAMESPACE/quickbook-$a:$IMAGE_TAG" ]; then
+                                if [ "$current" = "$REGISTRY_NAMESPACE/quickbook-$a:$a-$BUILD_NUMBER" ]; then
                                     echo "==> rolling back $a"
                                     kubectl -n $NAMESPACE rollout undo deployment/$a || true
                                 fi
@@ -145,10 +154,11 @@ pipeline {
             }
         }
         always {
-            // Images are on Docker Hub now; free local disk on the Docker Desktop VM.
+            // Images are on Docker Hub now; remove local tags. BuildKit's layer/cache-mount cache is kept,
+            // so the next build reuses unchanged layers and downloaded packages.
             sh '''
                 for a in $APPS; do
-                    docker rmi $REGISTRY_NAMESPACE/quickbook-$a:$IMAGE_TAG > /dev/null 2>&1 || true
+                    docker rmi $REGISTRY_NAMESPACE/quickbook-$a:$a-$BUILD_NUMBER > /dev/null 2>&1 || true
                 done
                 docker image prune -f > /dev/null 2>&1 || true
             '''
