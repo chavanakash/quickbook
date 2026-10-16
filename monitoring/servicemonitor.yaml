@@ -1,0 +1,19 @@
+# Tells Prometheus to scrape /metrics on QuickBook's Python services every 30s.
+# (frontend/nginx and postgres don't expose app metrics, so they are not selected.)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: quickbook-services
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: ["quickbook"]
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["auth-service", "inventory-service", "booking-service", "payment-service", "ticket-service"]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

@@ -58,3 +58,8 @@ def test_seed_is_idempotent(client):
     with SessionLocal() as db:
         seed_if_empty(db)
     assert len(search(client).json()) == 3
+
+
+def test_search_metric(client):
+    search(client)
+    assert 'quickbook_searches_total{mode="flight"}' in client.get("/metrics").text

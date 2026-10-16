@@ -1,0 +1,84 @@
+# kube-prometheus-stack values for the QuickBook lab cluster (kubeadm, 1 master + 2 workers, 3 GB each).
+# Install/upgrade: see monitoring/README.md
+
+# --- Alerting is out of scope for now: saves ~100 MB of RAM. ---
+alertmanager:
+  enabled: false
+
+# --- kubeadm binds these control-plane components to 127.0.0.1, so Prometheus can't scrape them.
+# Leaving them on would only show permanently "down" targets. (Fix later by rebinding them to 0.0.0.0.)
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors from every namespace, not only ones labelled for this Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 30s
+    retention: 3d
+    retentionSize: 4GB
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    # Keep metrics across Prometheus restarts (uses the local-path StorageClass).
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+grafana:
+  # Admin password is generated at install time and stored only in the cluster Secret.
+  defaultDashboardsTimezone: browser
+  persistence:
+    enabled: false # dashboards come from code (ConfigMaps), so nothing to lose
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard # any ConfigMap with this label becomes a dashboard
+      searchNamespace: ALL
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 24Mi
+    limits:
+      memory: 64Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi

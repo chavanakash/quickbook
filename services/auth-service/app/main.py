@@ -4,12 +4,13 @@ from contextlib import asynccontextmanager
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from prometheus_client import Counter, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .db import get_db, init_db
+from .db import SessionLocal, get_db, init_db
 from .logging_config import add_request_logging, setup_logging
 from .models import User
 from .schemas import AuthResponse, SigninRequest, SignupRequest, UserOut
@@ -19,6 +20,25 @@ SERVICE_NAME = "auth-service"
 setup_logging(SERVICE_NAME)
 logger = logging.getLogger(SERVICE_NAME)
 bearer = HTTPBearer(auto_error=False)
+
+# Business metrics for Grafana. Counters only go up; dashboards use rate()/increase() on them.
+SIGNUPS = Counter("quickbook_signups_total", "Successful sign-ups")
+SIGNINS = Counter("quickbook_signins_total", "Sign-in attempts", ["result"])
+for _result in ("success", "failure"):
+    SIGNINS.labels(result=_result)  # pre-create series so they show 0 instead of "no data"
+REGISTERED_USERS = Gauge("quickbook_registered_users", "Registered users in the database")
+
+
+def count_users() -> float:
+    """Evaluated on every Prometheus scrape (every 30s)."""
+    try:
+        with SessionLocal() as db:
+            return float(db.scalar(select(func.count()).select_from(User)))
+    except Exception:
+        return float("nan")
+
+
+REGISTERED_USERS.set_function(count_users)
 
 
 @asynccontextmanager
@@ -65,6 +85,7 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
 
+    SIGNUPS.inc()
     logger.info("user signed up", extra={"extra_fields": {"user_id": user.id}})
     return AuthResponse(access_token=create_access_token(user), user=UserOut.model_validate(user))
 
@@ -73,9 +94,11 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
 def signin(payload: SigninRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
     if not user or not verify_password(payload.password, user.password_hash):
+        SIGNINS.labels(result="failure").inc()
         logger.info("failed sign-in attempt")
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
+    SIGNINS.labels(result="success").inc()
     logger.info("user signed in", extra={"extra_fields": {"user_id": user.id}})
     return AuthResponse(access_token=create_access_token(user), user=UserOut.model_validate(user))
 

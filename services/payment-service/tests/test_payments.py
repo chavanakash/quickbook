@@ -70,3 +70,10 @@ def test_confirm_failure_returns_502(client, fake_bookings):
     fake_bookings.fail_confirm = True
     assert pay(client).status_code == 502
     assert fake_bookings.bookings[1]["status"] == "PENDING_PAYMENT"
+
+
+def test_payment_metrics(client):
+    pay(client)
+    body = client.get("/metrics").text
+    assert 'quickbook_payments_total{status="success"}' in body
+    assert "quickbook_revenue_inr_total" in body

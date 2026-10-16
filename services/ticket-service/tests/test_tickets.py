@@ -28,3 +28,8 @@ def test_auth_and_not_found(client):
 def test_pdf_builder_handles_markup_in_names():
     # A passenger name containing tags must not break PDF generation.
     assert build_ticket_pdf(CONFIRMED_BOOKING).startswith(b"%PDF")
+
+
+def test_ticket_metric(client):
+    client.get("/api/tickets/1", headers=AUTH)
+    assert "quickbook_tickets_generated_total" in client.get("/metrics").text

@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
+from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -21,6 +22,12 @@ from .schemas import BookingCreate, BookingOut, ConfirmRequest
 SERVICE_NAME = "booking-service"
 setup_logging(SERVICE_NAME)
 logger = logging.getLogger(SERVICE_NAME)
+
+BOOKINGS_CREATED = Counter("quickbook_bookings_created_total", "Bookings created (awaiting payment)", ["mode"])
+BOOKINGS_CONFIRMED = Counter("quickbook_bookings_confirmed_total", "Bookings confirmed after payment", ["mode"])
+for _mode in ("flight", "train"):
+    BOOKINGS_CREATED.labels(mode=_mode)
+    BOOKINGS_CONFIRMED.labels(mode=_mode)
 
 PNR_ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in "O0I1")
 
@@ -94,6 +101,7 @@ def create_booking(
     )
     db.add(booking)
     db.commit()
+    BOOKINGS_CREATED.labels(mode=booking.mode).inc()
     logger.info(
         "booking created",
         extra={"extra_fields": {"booking_id": booking.id, "pnr": booking.pnr, "user_id": user.id}},
@@ -137,5 +145,6 @@ def confirm_booking(
     booking.status = CONFIRMED
     booking.payment_ref = payload.payment_ref
     db.commit()
+    BOOKINGS_CONFIRMED.labels(mode=booking.mode).inc()
     logger.info("booking confirmed", extra={"extra_fields": {"booking_id": booking.id, "pnr": booking.pnr}})
     return booking

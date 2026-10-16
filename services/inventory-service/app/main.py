@@ -4,6 +4,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
+from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -19,6 +20,10 @@ setup_logging(SERVICE_NAME)
 logger = logging.getLogger(SERVICE_NAME)
 
 Mode = Literal["flight", "train"]
+
+SEARCHES = Counter("quickbook_searches_total", "Trip searches", ["mode"])
+for _mode in ("flight", "train"):
+    SEARCHES.labels(mode=_mode)
 
 
 @asynccontextmanager
@@ -86,6 +91,7 @@ def search(
     if origin.strip().lower() == destination.strip().lower():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Origin and destination must be different")
     ensure_not_past(travel_date)
+    SEARCHES.labels(mode=mode).inc()
 
     schedules = db.scalars(
         select(Schedule)

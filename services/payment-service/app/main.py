@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from decimal import Decimal
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -19,6 +20,11 @@ from .schemas import PaymentOut, PaymentRequest
 SERVICE_NAME = "payment-service"
 setup_logging(SERVICE_NAME)
 logger = logging.getLogger(SERVICE_NAME)
+
+PAYMENTS = Counter("quickbook_payments_total", "Payment attempts by outcome", ["status"])
+for _status in (SUCCESS, FAILED):
+    PAYMENTS.labels(status=_status.lower())
+REVENUE = Counter("quickbook_revenue_inr_total", "Amount successfully charged, in INR")
 
 
 @asynccontextmanager
@@ -52,6 +58,9 @@ def record(db: Session, payment: Payment, new_status: str, reason: str | None = 
     payment.failure_reason = reason
     db.add(payment)
     db.commit()
+    PAYMENTS.labels(status=new_status.lower()).inc()
+    if new_status == SUCCESS:
+        REVENUE.inc(float(payment.amount))
     logger.info(
         "payment recorded",
         extra={"extra_fields": {"booking_id": payment.booking_id, "status": new_status, "reason": reason}},

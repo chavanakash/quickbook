@@ -55,3 +55,12 @@ def test_signin_wrong_password(client):
 def test_me_requires_valid_token(client):
     assert client.get("/api/auth/me").status_code == 401
     assert client.get("/api/auth/me", headers={"Authorization": "Bearer garbage"}).status_code == 401
+
+
+def test_business_metrics(client):
+    signup(client)
+    client.post("/api/auth/signin", json={"email": "asha@example.com", "password": "wrongpass1"})
+    body = client.get("/metrics").text
+    assert "quickbook_registered_users 1.0" in body
+    assert "quickbook_signups_total" in body
+    assert 'quickbook_signins_total{result="failure"}' in body

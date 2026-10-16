@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, Header, HTTPException, Response, status
+from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from . import clients
@@ -10,6 +11,8 @@ from .pdf import build_ticket_pdf
 SERVICE_NAME = "ticket-service"
 setup_logging(SERVICE_NAME)
 logger = logging.getLogger(SERVICE_NAME)
+
+TICKETS = Counter("quickbook_tickets_generated_total", "PDF tickets generated")
 
 app = FastAPI(title="Ticket Service")
 add_request_logging(app)
@@ -46,6 +49,7 @@ def download_ticket(booking_id: int, authorization: str | None = Header(default=
         raise HTTPException(status.HTTP_409_CONFLICT, "Ticket is available only after payment")
 
     pdf = build_ticket_pdf(booking)
+    TICKETS.inc()
     logger.info("ticket generated", extra={"extra_fields": {"booking_id": booking_id, "pnr": booking["pnr"]}})
     return Response(
         content=pdf,

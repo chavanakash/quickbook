@@ -66,3 +66,11 @@ def test_internal_confirm(client):
     assert resp.json()["status"] == "CONFIRMED"
     # Idempotent: a retry succeeds and keeps the original reference.
     assert client.post(url, json={"payment_ref": "TXN2"}, headers=good).json()["payment_ref"] == "TXN1"
+
+
+def test_booking_metrics(client):
+    booking_id = create(client).json()["id"]
+    client.post(f"/internal/bookings/{booking_id}/confirm", json={"payment_ref": "T"}, headers={"X-Internal-Token": "test-internal-token"})
+    body = client.get("/metrics").text
+    assert 'quickbook_bookings_created_total{mode="flight"}' in body
+    assert 'quickbook_bookings_confirmed_total{mode="flight"}' in body
