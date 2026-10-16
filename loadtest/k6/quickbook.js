@@ -1,5 +1,5 @@
 // QuickBook user journey for k6 (open model: users arrive at a set rate whatever the response times).
-// PROFILE=gate   -> 90 s at 1.5 users/s with SLO thresholds (CI performance gate; exit 99 on breach)
+// PROFILE=gate   -> 30 s warm-up (not scored) + 90 s at 1.5 users/s with SLO thresholds (CI gate; exit 99 on breach)
 // PROFILE=stress -> 1 -> 2 -> 4 -> 6 -> 8 -> 10 users/s, 60 s each (same ramp as scripts/load_profiles/stress-ramp.json)
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -10,24 +10,28 @@ const SCALE = Number(__ENV.TIME_SCALE || '0.25'); // shrink think times, like th
 
 const step = (rate) => [{ target: rate, duration: '0s' }, { target: rate, duration: '60s' }];
 const SCENARIOS = {
-  gate: { executor: 'constant-arrival-rate', rate: 15, timeUnit: '10s', duration: '90s', preAllocatedVUs: 40, maxVUs: 300 },
+  // Warm-up first: the gate runs seconds after a rollout, and brand-new pods are cold (first imports,
+  // DB connections, DNS). Only the "gate" scenario is scored, so cold starts don't fail a good release.
+  warmup: { executor: 'constant-arrival-rate', rate: 15, timeUnit: '10s', duration: '30s', preAllocatedVUs: 40, maxVUs: 300 },
+  gate: { executor: 'constant-arrival-rate', rate: 15, timeUnit: '10s', duration: '90s', startTime: '30s',
+          preAllocatedVUs: 40, maxVUs: 300 },
   stress: { executor: 'ramping-arrival-rate', startRate: 1, timeUnit: '1s', preAllocatedVUs: 100, maxVUs: 800,
             stages: [1, 2, 4, 6, 8, 10].flatMap(step) },
 };
 
-// SLOs (same as scripts/load_profiles/load-steady.json). In the gate they decide pass/fail.
+// SLOs (same as scripts/load_profiles/load-steady.json), scored on the "gate" scenario only.
 const SLO = {
-  'http_req_failed': ['rate<0.01'],
-  'http_req_duration{step:signin}': ['p(95)<2500'],
-  'http_req_duration{step:signup}': ['p(95)<2500'],
-  'http_req_duration{step:search}': ['p(95)<500'],
-  'http_req_duration{step:create_booking}': ['p(95)<500'],
-  'http_req_duration{step:payment}': ['p(95)<500'],
-  'http_req_duration{step:ticket_pdf}': ['p(95)<500'],
+  'http_req_failed{scenario:gate}': ['rate<0.01'],
+  'http_req_duration{scenario:gate,step:signin}': ['p(95)<2500'],
+  'http_req_duration{scenario:gate,step:signup}': ['p(95)<2500'],
+  'http_req_duration{scenario:gate,step:search}': ['p(95)<500'],
+  'http_req_duration{scenario:gate,step:create_booking}': ['p(95)<500'],
+  'http_req_duration{scenario:gate,step:payment}': ['p(95)<500'],
+  'http_req_duration{scenario:gate,step:ticket_pdf}': ['p(95)<500'],
 };
 
 export const options = {
-  scenarios: { users: SCENARIOS[PROFILE] },
+  scenarios: PROFILE === 'gate' ? { warmup: SCENARIOS.warmup, gate: SCENARIOS.gate } : { users: SCENARIOS[PROFILE] },
   thresholds: PROFILE === 'gate' ? SLO : {},
   summaryTrendStats: ['p(50)', 'p(95)', 'p(99)', 'max'],
 };
