@@ -22,10 +22,17 @@ helm upgrade --install traefik traefik/traefik --version 42.0.0 -n traefik --cre
 Routes live with what they expose: `k8s/ingress.yaml` (deployed by Jenkins with the app) and
 `monitoring/ingress.yaml` (applied with `kubectl apply -k monitoring/`).
 
-One-time on the Mac (curl/Chrome/Firefox resolve `*.localhost` themselves; Safari, Python and
-other macOS apps need this):
+One-time on the Mac (curl/Chrome/Firefox and the repo's Python scripts resolve `*.localhost` themselves;
+Safari and other macOS apps need this):
 ```bash
 echo "127.0.0.1 quickbook.localhost grafana.localhost prometheus.localhost" | sudo tee -a /etc/hosts
+```
+
+## Access logs
+Traefik logs every request as JSON (host, path, status, duration, backend) → Alloy → Loki. In Grafana Explore:
+```
+{namespace="traefik"} | json | DownstreamStatus >= 500        # errors at the ingress layer
+{namespace="traefik"} | json | RequestHost="quickbook.localhost"
 ```
 
 ## Why these choices

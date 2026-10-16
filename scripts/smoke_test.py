@@ -8,14 +8,30 @@ import json
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 
 BASE_URL = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000").rstrip("/")
 
 
+def resolve_localhost(url):
+    """Browsers treat *.localhost as this machine, but macOS doesn't (without /etc/hosts).
+    Connect to 127.0.0.1 and send the original name as the Host header so the ingress still routes."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.hostname and parts.hostname.endswith(".localhost"):
+        netloc = "127.0.0.1" + (f":{parts.port}" if parts.port else "")
+        return urllib.parse.urlunsplit(parts._replace(netloc=netloc)), parts.netloc
+    return url, None
+
+
+BASE_URL, HOST_HEADER = resolve_localhost(BASE_URL)
+
+
 def call(method, path, body=None, token=None, expect=200):
     headers = {"Content-Type": "application/json"} if body is not None else {}
+    if HOST_HEADER:
+        headers["Host"] = HOST_HEADER
     if token:
         headers["Authorization"] = f"Bearer {token}"
     data = json.dumps(body).encode() if body is not None else None

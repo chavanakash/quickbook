@@ -40,6 +40,12 @@ updateStrategy:
     maxUnavailable: 1
     maxSurge: 0
 
+# Access log for every request (JSON on stdout -> Alloy -> Loki), so failures at the ingress layer
+# are visible in Grafana too, not only those that reach the app.
+accessLog:
+  enabled: true
+  format: json
+
 ingressClass:
   enabled: true
   isDefaultClass: true

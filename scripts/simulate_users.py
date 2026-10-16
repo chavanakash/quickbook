@@ -24,6 +24,19 @@ BASE_URL = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000").rstri
 USERS = int(sys.argv[2]) if len(sys.argv) > 2 else 100
 CONCURRENCY = int(sys.argv[3]) if len(sys.argv) > 3 else 10
 
+
+def resolve_localhost(url):
+    """Browsers treat *.localhost as this machine, but macOS doesn't (without /etc/hosts).
+    Connect to 127.0.0.1 and send the original name as the Host header so the ingress still routes."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.hostname and parts.hostname.endswith(".localhost"):
+        netloc = "127.0.0.1" + (f":{parts.port}" if parts.port else "")
+        return urllib.parse.urlunsplit(parts._replace(netloc=netloc)), parts.netloc
+    return url, None
+
+
+BASE_URL, HOST_HEADER = resolve_localhost(BASE_URL)
+
 FIRST = ["Aarav", "Vivaan", "Aditya", "Arjun", "Sai", "Ishaan", "Rohan", "Kabir", "Ananya", "Diya",
          "Priya", "Isha", "Meera", "Kavya", "Saanvi", "Riya", "Neha", "Akash", "Rahul", "Sneha"]
 LAST = ["Sharma", "Verma", "Reddy", "Iyer", "Nair", "Patel", "Gupta", "Rao", "Singh", "Das",
@@ -40,6 +53,8 @@ def count(key, n=1):
 
 def call(method, path, body=None, token=None):
     headers = {"Content-Type": "application/json"} if body is not None else {}
+    if HOST_HEADER:
+        headers["Host"] = HOST_HEADER
     if token:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(BASE_URL + path, method=method, headers=headers,
@@ -64,7 +79,7 @@ def simulate(n, cities):
 
     status, auth = call("POST", "/api/auth/signup", {"full_name": name, "email": email, "password": password})
     if status != 201:
-        count("errors: signup")
+        count(f"errors: signup (HTTP {status})")
         return
     count("users signed up")
 
@@ -95,7 +110,7 @@ def simulate(n, cities):
                            {"schedule_id": trip["schedule_id"], "travel_date": travel_date, "passengers": passengers},
                            token=token)
     if status != 201:
-        count("errors: booking")
+        count(f"errors: booking (HTTP {status})")
         return
     count(f"bookings created ({mode})")
 
@@ -109,7 +124,7 @@ def simulate(n, cities):
             return
     status, payment = call("POST", "/api/payments", {**card, "card_number": GOOD_CARD}, token=token)
     if status != 201:
-        count("errors: payment")
+        count(f"errors: payment (HTTP {status})")
         return
     count("bookings paid")
     count("revenue INR", int(payment["amount"]))
@@ -118,7 +133,7 @@ def simulate(n, cities):
     if status == 200 and pdf[:4] == b"%PDF":
         count("tickets downloaded")
     else:
-        count("errors: ticket")
+        count(f"errors: ticket (HTTP {status})")
 
 
 def main():
