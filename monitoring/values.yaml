@@ -59,13 +59,14 @@ grafana:
         maxLines: 1000
   persistence:
     enabled: false # dashboards come from code (ConfigMaps), so nothing to lose
+  # Grafana 13 was OOMKilled at 384Mi while rendering the 30-panel QuickBook dashboard.
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      cpu: 500m
-      memory: 384Mi
+      cpu: "1"
+      memory: 768Mi
   sidecar:
     datasources:
       alertmanager:

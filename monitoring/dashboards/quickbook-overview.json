@@ -848,8 +848,11 @@
       "fieldConfig": {
         "defaults": {
           "min": 0,
-          "max": 3,
+          "max": 2,
           "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -872,7 +875,8 @@
       },
       "options": {
         "orientation": "horizontal",
-        "displayMode": "gradient",
+        "displayMode": "basic",
+        "showUnfilled": true,
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -893,13 +897,13 @@
     },
     {
       "type": "timeseries",
-      "title": "Pod restarts",
+      "title": "Restarts per service (10m)",
       "description": "",
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"quickbook\"}[10m]))",
-          "legendFormat": "{{pod}}",
+          "expr": "sum by (app) (label_replace(increase(kube_pod_container_status_restarts_total{namespace=\"quickbook\"}[10m]), \"app\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)$\"))",
+          "legendFormat": "{{app}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -948,13 +952,13 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU per pod (cores)",
+      "title": "CPU per service (cores, all replicas)",
       "description": "",
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"quickbook\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
-          "legendFormat": "{{pod}}",
+          "expr": "sum by (app) (label_replace(rate(container_cpu_usage_seconds_total{namespace=\"quickbook\",container!=\"\",container!=\"POD\"}[$__rate_interval]), \"app\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)$\"))",
+          "legendFormat": "{{app}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -969,7 +973,7 @@
             "lineWidth": 2,
             "showPoints": "never",
             "stacking": {
-              "mode": "none"
+              "mode": "normal"
             }
           }
         },
@@ -1003,13 +1007,13 @@
     },
     {
       "type": "timeseries",
-      "title": "Memory per pod",
+      "title": "Memory per service (all replicas)",
       "description": "",
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"quickbook\",container!=\"\",container!=\"POD\"})",
-          "legendFormat": "{{pod}}",
+          "expr": "sum by (app) (label_replace(container_memory_working_set_bytes{namespace=\"quickbook\",container!=\"\",container!=\"POD\"}, \"app\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)$\"))",
+          "legendFormat": "{{app}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1024,7 +1028,7 @@
             "lineWidth": 2,
             "showPoints": "never",
             "stacking": {
-              "mode": "none"
+              "mode": "normal"
             }
           }
         },
@@ -1327,7 +1331,8 @@
             "stacking": {
               "mode": "normal"
             }
-          }
+          },
+          "noValue": "No errors or warnings"
         },
         "overrides": []
       },
@@ -1363,7 +1368,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{namespace=\"quickbook\", app=~\"$app\"} |= \"$search\"",
+          "expr": "{namespace=\"quickbook\", app=~\"$app\"} |= \"$search\" | json | drop __error__, __error_details__ | line_format `{{if .service}}[{{.service}}] {{.message}}{{if .path}}  {{.method}} {{.path}} \u2192 {{.status}} ({{.duration_ms}} ms){{end}}{{else}}{{__line__}}{{end}}`",
           "legendFormat": "",
           "datasource": {
             "type": "loki",

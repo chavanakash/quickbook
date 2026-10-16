@@ -10,6 +10,13 @@ LOKI = {"type": "loki", "uid": "loki"}
 NS = 'namespace="quickbook"'
 APP_HANDLERS = 'handler!~"/health|/ready|/metrics"'  # ignore probe/scrape traffic
 NODE_NAME = " * on (instance) group_left (nodename) node_uname_info"  # adds the node's hostname as a label
+# Pod name -> app name ("auth-service-5f9bc657b4-wcxmt" -> "auth-service", "postgres-0" -> "postgres"),
+# so graphs stay readable after deploys instead of piling up old pod names.
+POD_TO_APP = r'"app", "$1", "pod", "(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)$"'
+
+
+def by_app(expr):
+    return f"sum by (app) (label_replace({expr}, {POD_TO_APP}))"
 
 panels, next_id, y = [], 1, 0
 
@@ -100,21 +107,22 @@ add(stat("Restarts (selected range)",
          f'sum(increase(kube_pod_container_status_restarts_total{{{NS}}}[$__range]))', color="orange"), 4, 4, 8)
 add({"type": "bargauge", "title": "Available replicas per deployment",
      "targets": targets((f'kube_deployment_status_replicas_available{{{NS}}}', "{{deployment}}")),
-     "fieldConfig": {"defaults": {"min": 0, "max": 3, "unit": "short", "thresholds": {"mode": "absolute", "steps": [
+     "fieldConfig": {"defaults": {"min": 0, "max": 2, "unit": "short", "color": {"mode": "thresholds"},
+                                  "thresholds": {"mode": "absolute", "steps": [
          {"color": "red", "value": None}, {"color": "orange", "value": 1}, {"color": "green", "value": 2}]}},
                      "overrides": []},
-     "options": {"orientation": "horizontal", "displayMode": "gradient",
+     "options": {"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True,
                  "reduceOptions": {"calcs": ["lastNotNull"]}}}, 12, 8, 12)
 y += 4
-add(series("Pod restarts", (f'sum by (pod) (increase(kube_pod_container_status_restarts_total{{{NS}}}[10m]))', "{{pod}}")),
-    12, 4, 0)
+add(series("Restarts per service (10m)",
+           (by_app(f'increase(kube_pod_container_status_restarts_total{{{NS}}}[10m])'), "{{app}}")), 12, 4, 0)
 y += 4
-add(series("CPU per pod (cores)",
-           (f'sum by (pod) (rate(container_cpu_usage_seconds_total{{{NS},container!="",container!="POD"}}[$__rate_interval]))',
-            "{{pod}}"), unit="short"), 12, 8, 0)
-add(series("Memory per pod",
-           (f'sum by (pod) (container_memory_working_set_bytes{{{NS},container!="",container!="POD"}})', "{{pod}}"),
-           unit="bytes"), 12, 8, 12)
+add(series("CPU per service (cores, all replicas)",
+           (by_app(f'rate(container_cpu_usage_seconds_total{{{NS},container!="",container!="POD"}}[$__rate_interval])'),
+            "{{app}}"), unit="short", stack=True), 12, 8, 0)
+add(series("Memory per service (all replicas)",
+           (by_app(f'container_memory_working_set_bytes{{{NS},container!="",container!="POD"}}'), "{{app}}"),
+           unit="bytes", stack=True), 12, 8, 12)
 y += 8
 
 # ---------------- Nodes ----------------
@@ -141,9 +149,14 @@ add(series("Errors & warnings per service",
            ('sum by (app, level) (count_over_time({namespace="quickbook", app=~"$app", level=~"ERROR|WARNING"} [$__interval]))',
             "{{app}} {{level}}"),
            stack=True, ds=LOKI, desc="From the JSON 'level' field the services log."), 12, 8, 12, ds=LOKI)
+panels[-1]["fieldConfig"]["defaults"]["noValue"] = "No errors or warnings"
 y += 8
+# JSON service logs are reformatted into one readable line; other lines (nginx, postgres) are shown as-is.
+LOG_FORMAT = ('{{if .service}}[{{.service}}] {{.message}}'  # level is shown by Grafana's own level column
+              '{{if .path}}  {{.method}} {{.path}} → {{.status}} ({{.duration_ms}} ms){{end}}'
+              '{{else}}{{__line__}}{{end}}')
 add({"type": "logs", "title": "QuickBook logs (filter with the app / search boxes at the top)",
-     "targets": targets((f'{LOG_SELECTOR} |= "$search"', ""), ds=LOKI),
+     "targets": targets((f'{LOG_SELECTOR} |= "$search" | json | drop __error__, __error_details__ | line_format `{LOG_FORMAT}`', ""), ds=LOKI),
      "options": {"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending",
                  "enableLogDetails": True, "prettifyLogMessage": False, "dedupStrategy": "none"}},
     24, 12, 0, ds=LOKI)
