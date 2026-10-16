@@ -1,0 +1,58 @@
+{
+  "name": "smoke",
+  "description": "30 s at 0.5 users/s with think times ×0.1 - checks the script and app work",
+  "time_scale": 0.1,
+  "stages": [
+    {
+      "name": "smoke",
+      "arrival_rate": 0.5,
+      "duration_sec": 30
+    }
+  ],
+  "think_time": {
+    "signup": {
+      "distribution": "lognormal",
+      "median": 20,
+      "sigma": 0.5
+    },
+    "signin": {
+      "distribution": "lognormal",
+      "median": 6,
+      "sigma": 0.4
+    },
+    "search": {
+      "distribution": "lognormal",
+      "median": 8,
+      "sigma": 0.6
+    },
+    "passengers": {
+      "distribution": "lognormal",
+      "median": 25,
+      "sigma": 0.5
+    },
+    "payment": {
+      "distribution": "lognormal",
+      "median": 15,
+      "sigma": 0.4
+    },
+    "confirmation": {
+      "distribution": "exponential",
+      "mean": 5
+    }
+  },
+  "journey": {
+    "new_user_probability": 0.3,
+    "returning_user_pool": 40,
+    "flight_probability": 0.55,
+    "searches_min": 1,
+    "searches_max": 3,
+    "book_probability": 0.8,
+    "max_passengers": 4,
+    "decline_probability": 0.1,
+    "abandon_after_decline_probability": 0.4,
+    "ticket_probability": 0.9
+  },
+  "request_timeout_sec": 30,
+  "max_concurrent_sessions": 500,
+  "drain_timeout_sec": 120
+}

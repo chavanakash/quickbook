@@ -17,3 +17,6 @@ dist/
 
 # Local scratch notes (may contain cluster join tokens)
 .txt
+
+# load test output
+scripts/load_results/
