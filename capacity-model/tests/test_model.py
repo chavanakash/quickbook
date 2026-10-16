@@ -103,3 +103,15 @@ def test_distribution_sampling_matches_analytical_mean(spec, expected):
     f = D.make(spec)
     assert statistics.mean(f(rng) for _ in range(40000)) == pytest.approx(expected, rel=0.03)
     assert D.mean(spec) == pytest.approx(expected, rel=1e-3)
+
+
+def test_hpa_scales_up_under_load_and_isolated_probes_prevent_restarts():
+    cfg = single_queue(3.0, mean_cpu=0.5, cpu_limit=1.0, duration=300, threads=8,
+                       probes={"liveness": {"period_sec": 10, "timeout_sec": 1, "failure_threshold": 3}})
+    cfg["services"]["svc"].update({"probes_isolated": True, "max_queue": 10, "hpa": {
+        "min_replicas": 1, "max_replicas": 4, "target_utilization": 70, "cpu_request": 0.4}})
+    rec = Simulation(cfg, seed=21).run()
+    replicas = [row["svc.replicas"] for _, row in rec.samples]
+    assert max(replicas) == 4 and replicas[0] == 1        # scaled from 1 to the maximum
+    assert sum(rec.restarts.values()) == 0                # busy pods are never killed
+    assert any(r[4] == 503 for r in rec.requests)         # shedding happened while scaling up

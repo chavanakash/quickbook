@@ -1,0 +1,67 @@
+{
+  "extends": "base.json",
+  "description": "The fix as deployed: auth HPA 2->4 pods (400m request, 1-core limit, target 70%), 8 threads + 10 queued per pod with fast 503s, async /health + isolated /ready, liveness 5 s timeout x 6 failures.",
+  "arrivals": {
+    "stages": [
+      {
+        "name": "λ=1",
+        "rate": 1,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=2",
+        "rate": 2,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=4",
+        "rate": 4,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=6",
+        "rate": 6,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=8",
+        "rate": 8,
+        "duration_sec": 60
+      },
+      {
+        "name": "λ=10",
+        "rate": 10,
+        "duration_sec": 60
+      }
+    ]
+  },
+  "users": {
+    "time_scale": 0.25
+  },
+  "services": {
+    "auth": {
+      "pods": 2,
+      "cpu_limit": 1.0,
+      "threads": 8,
+      "max_queue": 10,
+      "probes_isolated": true,
+      "probes": {
+        "liveness": {
+          "timeout_sec": 5,
+          "failure_threshold": 6
+        }
+      },
+      "hpa": {
+        "min_replicas": 2,
+        "max_replicas": 4,
+        "target_utilization": 70,
+        "cpu_request": 0.4,
+        "sync_period_sec": 15,
+        "metrics_window_sec": 30,
+        "max_scale_up_pods": 2,
+        "scale_down_stabilization_sec": 300,
+        "pod_startup_sec": 12
+      }
+    }
+  }
+}

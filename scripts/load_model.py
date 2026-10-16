@@ -16,6 +16,7 @@ import csv
 import json
 import math
 import random
+import resource
 import sys
 import threading
 import time
@@ -273,6 +274,8 @@ def sample_active(rec, stop, current_stage):
 
 
 def summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path):
+    """Print the report; return True if every SLO passed (or no SLOs were defined)."""
+    slo_ok = True
     stages = [s["name"] for s in cfg["stages"]]
     print("\n=== Per stage ===")
     print(f"  {'stage':<14}{'target λ/s':>11}{'actual λ/s':>11}{'dropped':>8}{'avg active':>11}{'peak':>6}"
@@ -325,7 +328,8 @@ def summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path):
         print(f"\n=== SLO check (stages: {', '.join(sorted(measured))}) ===")
         for text, ok in checks:
             print(f"  {'PASS' if ok else 'FAIL'}  {text}")
-        print(f"  => {'ALL SLOs PASSED' if all(ok for _, ok in checks) else 'SLO FAILURE'}")
+        slo_ok = all(ok for _, ok in checks)
+        print(f"  => {'ALL SLOs PASSED' if slo_ok else 'SLO FAILURE'}")
 
     outcomes = defaultdict(int)
     for s in rec.sessions:
@@ -352,6 +356,12 @@ def summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path):
     print(f"\n  every request: {csv_path}")
     print(f"  Grafana for this run: http://grafana.localhost:8088/d/quickbook-overview/quickbook-overview"
           f"?from={int(t_start_epoch * 1000)}&to={int(t_end_epoch * 1000) + 60000}")
+    # Load-generator health: if this approaches the machine's cores, the generator itself is a bottleneck.
+    use = resource.getrusage(resource.RUSAGE_SELF)
+    cpu = use.ru_utime + use.ru_stime
+    print(f"  load generator: {cpu:.1f} CPU-s over {t_end_epoch - t_start_epoch:.0f} s = "
+          f"{cpu / (t_end_epoch - t_start_epoch):.2f} cores on average")
+    return slo_ok
 
 
 # ---------------------------------------------------------------- main
@@ -421,7 +431,8 @@ def main():
     out_dir = Path(__file__).with_name("load_results")
     out_dir.mkdir(exist_ok=True)
     csv_path = out_dir / f"{cfg.get('name', 'run')}-{datetime.now():%Y%m%d-%H%M%S}.csv"
-    summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path)
+    if not summarize(cfg, rec, t_start_epoch, t_end_epoch, csv_path):
+        sys.exit(2)  # non-zero exit = SLO failure (used by the CI performance gate)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ overloaded pod fails its probes: readiness removes it from the Service, liveness
 (its requests fail with 502) - the cascade seen on the real cluster. Requests the client gave
 up on keep consuming CPU (wasted work), as in reality.
 """
+import math
 import random
 from collections import defaultdict, deque
 
@@ -50,11 +51,14 @@ class Pod:
         self.alive, self.ready = True, True
         self.restarts = 0
         self.restart_times = []
+        self.cpu_used = 0.0  # core-seconds consumed (what metrics-server reports, for the HPA)
+        self.terminated = False
         self.wake = env.event()
         env.process(self._run())
 
     def _advance(self):
         if self.jobs:
+            self.cpu_used += (self.env.now - self.last) * self.service.cpu_limit
             share = (self.env.now - self.last) * self.service.cpu_limit / len(self.jobs)
             for job in self.jobs:
                 job[0] -= share
@@ -125,10 +129,60 @@ class Service:
         self.probes = cfg.get("probes", {})
         self.threads = int(cfg.get("threads", 40))  # Starlette's default thread-pool size
         self.max_queue = cfg.get("max_queue")  # None = unbounded (as deployed)
-        self.pods = [Pod(env, self, i, rec) for i in range(int(cfg["pods"]))]
-        for pod in self.pods:
-            for kind, spec in self.probes.items():
-                env.process(probe_loop(env, pod, kind, spec, rec, random.Random(rng.random())))
+        self.rec, self.next_index = rec, 0
+        self.probes_isolated = bool(cfg.get("probes_isolated", False))
+        self.pods = []
+        for _ in range(int(cfg.get("hpa", {}).get("min_replicas", cfg["pods"]))):
+            self.add_pod(ready=True)
+        if cfg.get("hpa"):
+            env.process(self.autoscaler(cfg["hpa"]))
+
+    def add_pod(self, ready, startup_sec=0.0):
+        pod = Pod(self.env, self, self.next_index, self.rec)
+        self.next_index += 1
+        if not ready:  # scheduled + container starting; joins the Service once ready
+            pod.alive = pod.ready = False
+            self.env.process(pod._come_back(startup_sec))
+        self.pods.append(pod)
+        for kind, spec in self.probes.items():
+            self.env.process(probe_loop(self.env, pod, kind, spec, self.rec, random.Random(self.rng.random())))
+
+    def autoscaler(self, hpa):
+        """Kubernetes HPA: desired = ceil(current * utilisation / target), every sync period."""
+        period, window = float(hpa.get("sync_period_sec", 15)), float(hpa.get("metrics_window_sec", 30))
+        target, request = float(hpa["target_utilization"]) / 100, float(hpa["cpu_request"])
+        lo, hi, step = int(hpa["min_replicas"]), int(hpa["max_replicas"]), int(hpa.get("max_scale_up_pods", 2))
+        stabilise = float(hpa.get("scale_down_stabilization_sec", 300))
+        history, recommendations = {}, []  # pod -> [(t, cpu_used)], [(t, desired)]
+        while True:
+            yield self.env.timeout(period)
+            now, usage = self.env.now, []
+            for pod in self.pods:
+                pod._advance()  # bring its CPU accounting up to now
+                h = history.setdefault(pod.name, [])
+                h.append((now, pod.cpu_used))
+                old = [x for x in h if now - x[0] >= window]
+                if pod.alive and pod.ready and old:
+                    t0, c0 = old[-1]
+                    usage.append((pod.cpu_used - c0) / (now - t0))
+            current = len(self.pods)
+            if not usage:
+                continue
+            ratio = (sum(usage) / len(usage)) / request / target
+            desired = current if abs(ratio - 1) <= 0.1 else math.ceil(current * ratio)  # 10% tolerance
+            desired = max(lo, min(hi, desired, current + step))
+            recommendations = [r for r in recommendations if now - r[0] < stabilise] + [(now, desired)]
+            if desired < current:
+                desired = max(d for _, d in recommendations)  # scale-down stabilisation window
+            if desired > current:
+                for _ in range(desired - current):
+                    self.add_pod(ready=False, startup_sec=float(hpa.get("pod_startup_sec", 12)))
+                self.rec.events.append((now, self.name, f"scale_up_to_{desired}"))
+            elif desired < current:
+                for pod in self.pods[desired:]:
+                    pod.terminated = True  # stops getting traffic; in-flight requests finish
+                self.pods = self.pods[:desired]
+                self.rec.events.append((now, self.name, f"scale_down_to_{desired}"))
 
     def submit(self, cpu_seconds):
         """Route to a random ready pod (like kube-proxy). No ready pod -> immediate 502."""
@@ -146,15 +200,19 @@ def probe_loop(env, pod, kind, spec, rec, rng):
     threshold, cpu = int(spec["failure_threshold"]), float(spec.get("cpu_seconds", 0.002))
     yield env.timeout(rng.uniform(0, period))  # pods aren't probed in lockstep
     fails = 0
-    while True:
+    while not pod.terminated:
         yield env.timeout(period)
         if not pod.alive:
             fails = 0
             continue
-        done = env.event()
-        pod.submit(cpu, done)
-        got = yield done | env.timeout(timeout)
-        if done in got and done.value == OK:
+        if pod.service.probes_isolated:  # async /health and a separate pool for /ready: never queued
+            ok = True
+        else:
+            done = env.event()
+            pod.submit(cpu, done)
+            got = yield done | env.timeout(timeout)
+            ok = done in got and done.value == OK
+        if ok:
             fails = 0
             if kind == "readiness" and not pod.ready:
                 pod.ready = True
@@ -306,6 +364,7 @@ class Simulation:
                 row[f"{n}.queue"] = sum(len(p.waiting) for p in s.pods)
                 row[f"{n}.busy"] = sum(len(p.jobs) for p in s.pods)
                 row[f"{n}.ready_pods"] = sum(1 for p in s.pods if p.alive and p.ready)
+                row[f"{n}.replicas"] = len(s.pods)
             for n, p in self.pages.items():
                 row[f"page.{n}.on_page"] = p.on_page
                 row[f"page.{n}.waiting"] = p.waiting
