@@ -19,7 +19,10 @@ services:
     environment:
       JAVA_OPTS: "-Xmx1g"
     mem_limit: 2g
-    restart: unless-stopped
+    # always: also comes back when Docker Desktop starts. (unless-stopped did not survive a Docker Desktop shutdown.)
+    restart: always
+    # Jenkins needs longer than Docker's default 10 s to shut down cleanly; it was being SIGKILLed (exit 137).
+    stop_grace_period: 60s
 
 volumes:
   jenkins_home:
