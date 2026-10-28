@@ -1,0 +1,21 @@
+# Drill 3 - Pending: its volume claim asks for a StorageClass that doesn't exist.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: data, namespace: drills}
+spec:
+  storageClassName: fast-ssd
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: needs-disk, namespace: drills, labels: {drill: "3"}}
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      resources: {requests: {cpu: 10m, memory: 16Mi}}
+      volumeMounts: [{name: data, mountPath: /data}]
+  volumes:
+    - name: data
+      persistentVolumeClaim: {claimName: data}

@@ -1,0 +1,10 @@
+# Drill 7 - OOMKilled: the program needs ~300 MiB but the memory limit is 100 MiB.
+apiVersion: v1
+kind: Pod
+metadata: {name: memory-hog, namespace: drills, labels: {drill: "7"}}
+spec:
+  containers:
+    - name: app
+      image: python:3.11-alpine
+      command: ["python", "-c", "import time; print('allocating 300 MiB', flush=True); x = bytearray(300 * 1024 * 1024); time.sleep(3600)"]
+      resources: {requests: {cpu: 10m, memory: 64Mi}, limits: {memory: 100Mi}}

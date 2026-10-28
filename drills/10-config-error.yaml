@@ -1,0 +1,12 @@
+# Drill 10 - CreateContainerConfigError: the pod needs a Secret that doesn't exist.
+apiVersion: v1
+kind: Pod
+metadata: {name: missing-secret, namespace: drills, labels: {drill: "10"}}
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      env:
+        - name: API_KEY
+          valueFrom: {secretKeyRef: {name: payment-gateway-keys, key: api-key}}
+      resources: {requests: {cpu: 10m, memory: 16Mi}}

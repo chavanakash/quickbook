@@ -1,0 +1,9 @@
+# Drill 1 - Pending: asks for more CPU than any node has.
+apiVersion: v1
+kind: Pod
+metadata: {name: big-cpu, namespace: drills, labels: {drill: "1"}}
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      resources: {requests: {cpu: "8", memory: 64Mi}}

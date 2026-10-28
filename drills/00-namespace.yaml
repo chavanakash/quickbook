@@ -1,0 +1,5 @@
+# Separate namespace: drills never touch the real app. Delete it to clean everything up.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: drills

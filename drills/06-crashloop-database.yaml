@@ -1,0 +1,13 @@
+# Drill 6 - CrashLoopBackOff (realistic): QuickBook's auth-service pointed at a database host that doesn't exist.
+# It retries for ~30 s, then exits - like a real misconfigured DATABASE_URL.
+apiVersion: v1
+kind: Pod
+metadata: {name: auth-bad-db, namespace: drills, labels: {drill: "6"}}
+spec:
+  securityContext: {runAsNonRoot: true}
+  containers:
+    - name: auth
+      image: dockerizzz/quickbook-auth-service:auth-service-15
+      env:
+        - {name: DATABASE_URL, value: "postgresql+psycopg2://auth_user:auth_pass@postgres-typo:5432/auth_db"}
+      resources: {requests: {cpu: 10m, memory: 64Mi}, limits: {memory: 256Mi}}

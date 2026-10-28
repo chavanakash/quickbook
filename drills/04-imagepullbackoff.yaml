@@ -1,0 +1,9 @@
+# Drill 4 - ImagePullBackOff: the image tag doesn't exist.
+apiVersion: v1
+kind: Pod
+metadata: {name: bad-image, namespace: drills, labels: {drill: "4"}}
+spec:
+  containers:
+    - name: app
+      image: nginx:9.99-does-not-exist
+      resources: {requests: {cpu: 10m, memory: 16Mi}}

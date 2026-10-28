@@ -1,0 +1,11 @@
+# Drill 9 - restarts every ~30 s: the liveness probe checks a path that doesn't exist,
+# so the kubelet keeps killing a perfectly healthy container.
+apiVersion: v1
+kind: Pod
+metadata: {name: killed-by-liveness, namespace: drills, labels: {drill: "9"}}
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      livenessProbe: {httpGet: {path: /alive, port: 80}, periodSeconds: 5, failureThreshold: 3}
+      resources: {requests: {cpu: 10m, memory: 16Mi}}

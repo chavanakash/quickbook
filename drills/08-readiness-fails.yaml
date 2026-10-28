@@ -1,0 +1,24 @@
+# Drill 8 - Running but 0/1 READY: the readiness probe checks a path that doesn't exist,
+# so the Service has no endpoints and gets no traffic.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web-not-ready, namespace: drills, labels: {drill: "8"}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: web-not-ready}}
+  template:
+    metadata: {labels: {app: web-not-ready, drill: "8"}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports: [{containerPort: 80}]
+          readinessProbe: {httpGet: {path: /healthz, port: 80}, periodSeconds: 5}
+          resources: {requests: {cpu: 10m, memory: 16Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web-not-ready, namespace: drills}
+spec:
+  selector: {app: web-not-ready}
+  ports: [{port: 80, targetPort: 80}]

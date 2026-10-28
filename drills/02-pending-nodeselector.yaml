@@ -1,0 +1,10 @@
+# Drill 2 - Pending: nodeSelector matches no node.
+apiVersion: v1
+kind: Pod
+metadata: {name: picky, namespace: drills, labels: {drill: "2"}}
+spec:
+  nodeSelector: {disktype: ssd}
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      resources: {requests: {cpu: 10m, memory: 16Mi}}

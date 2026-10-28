@@ -1,0 +1,21 @@
+# Drill 11 - pods are fine, but the Service's selector has a typo, so it routes to nothing.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: shop, namespace: drills, labels: {drill: "11"}}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: shop}}
+  template:
+    metadata: {labels: {app: shop, drill: "11"}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          resources: {requests: {cpu: 10m, memory: 16Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: shop, namespace: drills}
+spec:
+  selector: {app: shpo}   # typo: should be "shop"
+  ports: [{port: 80, targetPort: 80}]
